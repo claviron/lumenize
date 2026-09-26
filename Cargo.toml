@@ -6,6 +6,7 @@ authors = ["Claviron <code@claviron.org>"]
 description = "Safe Atomic Rust Power for PHP/Laravel applications through Claviron and Orbit."
 license = "MIT"
 readme = "README.md"
+repository = "https://github.com/claviron/lumenize.git"
 include = ["src/lib.rs", "Cargo.toml", "README.md", "LICENSE"]
 keywords = ["php", "laravel", "runtime", "claviron", "starter-kit"]
 categories = ["web-programming::http-server"]
