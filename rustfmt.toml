@@ -1,0 +1,34 @@
+# -----------------------------------------------------------------------------
+# Forge Rust at night. Ship the Future at dawn.
+# -----------------------------------------------------------------------------
+# Formatter profile: nightly
+# Run with: rustup run nightly cargo fmt
+# -----------------------------------------------------------------------------
+
+# Core language profile
+edition = "2024"                  # Target edition
+max_width = 100                    # Hard line width budget
+hard_tabs = false                  # Spaces over tabs
+tab_spaces = 4                     # Visual tab width
+
+# Heuristics
+use_small_heuristics = "Default"  # rustfmt defaults
+
+# Functions and clauses
+fn_params_layout = "Vertical"      # Vertical params when wrapping is needed
+
+# Impl and punctuation behavior
+reorder_impl_items = true          # Normalize item order inside impl blocks
+trailing_comma = "Vertical"        # Trailing commas on multiline forms
+force_explicit_abi = true          # Explicit ABI in extern functions
+wrap_comments = false              # Keep author-controlled comment wrapping
+
+# Struct/enum formatting
+struct_lit_width = 80              # Struct literal wrapping width
+struct_field_align_threshold = 0   # Disable alignment padding for fields
+enum_discrim_align_threshold = 0   # Disable alignment padding for discriminants
+
+# Imports
+imports_granularity = "Module"    # Group imports at module scope
+group_imports = "StdExternalCrate" # std -> external -> crate ordering
+reorder_imports = true             # Sort imports alphabetically

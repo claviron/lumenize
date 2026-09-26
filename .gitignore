@@ -1,0 +1,102 @@
+# --- Rust / Cargo ---
+/target/
+/target-native/
+# --- Build output ---
+/build/
+/build-*/
+cmake-build-*/
+*.o
+*.obj
+*.a
+*.so
+*.so.*
+*.dylib
+*.dll
+*.exe
+
+# --- CMake / native tooling ---
+vcpkg_installed/
+CMakeCache.txt
+CMakeFiles/
+CMakeScripts/
+cmake_install.cmake
+CTestTestfile.cmake
+install_manifest.txt
+compile_commands.json
+.cache/
+
+# --- PHP / Composer ---
+/vendor/
+composer.phar
+.phpunit.cache/
+.phpunit.result.cache
+.php-cs-fixer.cache
+.php_cs.cache
+_ide_helper.php
+Homestead.json
+Homestead.yaml
+
+# --- Runtime / sockets / pids / logs ---
+*.sock
+*.pid
+*.lock
+*.log
+logs/
+/tmp/
+tmp/
+/tests/result*.txt
+
+# --- Secrets & local config ---
+.env
+.env.*
+!.env.example
+*.env
+*.key
+*.pem
+*.pfx
+*.p12
+*.local
+
+# --- Editor / IDE ---
+/.idea/
+/.vscode/
+/.cursor/
+/.nova/
+/.zed/
+!/.vscode/settings.json
+!/.vscode/tasks.json
+!/.vscode/launch.json
+!/.vscode/extensions.json
+!/.vscode/*.code-snippets
+/.nvimlog
+/.venv/
+.history/
+.vs/
+*.swp
+*.swo
+*.swn
+*~
+
+# --- OS junk ---
+.DS_Store
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+
+# --- Misc local ---
+*.bak
+*.orig
+*.rej
+core
+core.*
+
+# --- Vibe Coding
+/.claude
+/.codex
+/.
+*.md
+*.pdf
+!README.md
+!AGENTS.md
+!CLAUDE.md
+!CONTRIBUTING.md
