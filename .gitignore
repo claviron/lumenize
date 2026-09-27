@@ -97,6 +97,11 @@ core.*
 *.md
 *.pdf
 !README.md
+!ARCHITECTURE.md
 !AGENTS.md
 !CLAUDE.md
 !CONTRIBUTING.md
+
+# Private checkout instructions never enter version control.
+AGENTS.local.md
+AGENT.local.md
