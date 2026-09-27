@@ -4,7 +4,6 @@
 use std::path::{Path, PathBuf};
 
 use claviron::runner::RunnerOptions;
-use claviron::runner::options::{merge, split};
 use serde::{Deserialize, Serialize};
 
 /// Deployment options; PHP engine and application policy stay in php.yaml.
@@ -43,58 +42,50 @@ impl Default for Options {
     }
 }
 
-/// Lumenize's own keys, beside the runner's in the same flat file.
-#[derive(Default, Serialize, Deserialize)]
+/// Lumenize's own keys, beside the runner's in the same flat file, and what a
+/// worker inherits of them.
+#[derive(Clone, Debug, Default, Serialize, Deserialize)]
 #[serde(default, deny_unknown_fields)]
-struct Own {
-    config_dir: Option<PathBuf>,
+pub(crate) struct Php {
+    pub(crate) config_dir: Option<PathBuf>,
     #[cfg(feature = "broadcast")]
-    broadcast_application: Option<String>,
+    pub(crate) broadcast_application: Option<String>,
 }
 
-impl Serialize for Options {
-    fn serialize<S: serde::Serializer>(
-        &self,
-        serializer: S,
-    ) -> Result<S::Ok, S::Error> {
-        use serde::ser::Error;
-        let own = Own {
-            config_dir: Some(self.config_dir.clone()),
+/// A launch as Lumenize writes and carries it.
+pub(crate) type Launch = claviron::runner::launch::Launch<Php>;
+
+impl From<Launch> for Options {
+    fn from(launch: Launch) -> Self {
+        Self {
+            runner: launch.runner,
+            config_dir: launch
+                .own
+                .config_dir
+                .unwrap_or_else(|| "config/runtime".into()),
             #[cfg(feature = "broadcast")]
-            broadcast_application: self.broadcast_application.clone(),
-        };
-        let shared = serde_yaml::to_value(&self.runner).map_err(S::Error::custom)?;
-        let own = serde_yaml::to_value(&own).map_err(S::Error::custom)?;
-        merge(shared, own).serialize(serializer)
+            broadcast_application: launch.own.broadcast_application,
+        }
     }
 }
 
-impl<'de> Deserialize<'de> for Options {
-    fn deserialize<D: serde::Deserializer<'de>>(deserializer: D) -> Result<Self, D::Error> {
-        use serde::de::Error;
-        let file = serde_yaml::Value::deserialize(deserializer)?;
-        let (shared, own) = split(file).map_err(D::Error::custom)?;
-        let runner: RunnerOptions = serde_yaml::from_value(shared).map_err(D::Error::custom)?;
-        // A key neither side knows lands here; the list of what is known is
-        // both halves, or the message would point away from the fix.
-        let own: Own = serde_yaml::from_value(own).map_err(|error| {
-            D::Error::custom(format!(
-                "{error}, or one of the runner's: {}",
-                RunnerOptions::KEYS.join(", ")
-            ))
-        })?;
-        Ok(Self {
-            runner,
-            config_dir: own.config_dir.unwrap_or_else(|| "config/runtime".into()),
-            #[cfg(feature = "broadcast")]
-            broadcast_application: own.broadcast_application,
-        })
+impl From<Options> for Launch {
+    fn from(options: Options) -> Self {
+        Self {
+            runner: options.runner,
+            own: Php {
+                config_dir: Some(options.config_dir),
+                #[cfg(feature = "broadcast")]
+                broadcast_application: options.broadcast_application,
+            },
+        }
     }
 }
 
 impl Options {
     pub fn from_file(path: impl AsRef<Path>) -> crate::Result<Self> {
-        Ok(serde_yaml::from_str(&std::fs::read_to_string(path)?)?)
+        let launch: Launch = serde_yaml::from_str(&std::fs::read_to_string(path)?)?;
+        Ok(launch.into())
     }
 
     /// What cannot be served as written, said before anything starts.
@@ -132,16 +123,6 @@ impl Options {
         };
         options.validate()?;
         Ok(options)
-    }
-
-    /// These options for a worker to inherit: it is started with no command
-    /// line, so the launch its master resolved travels in the envelope.
-    pub(crate) fn encode(&self) -> crate::Result<Vec<u8>> {
-        Ok(serde_json::to_vec(self)?)
-    }
-
-    pub(crate) fn decode(bytes: &[u8]) -> crate::Result<Self> {
-        Ok(serde_json::from_slice(bytes)?)
     }
 }
 

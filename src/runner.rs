@@ -1,11 +1,12 @@
 use std::sync::Arc;
 
 use claviron::Server;
-use claviron::runner::{OrbitIngress, Owner, Routing, SocketIngress};
+use claviron::runner::{Owner, launch};
 use claviron::runtime::{AppState, registry};
 
 use crate::Options;
 use crate::application::{PhpOwner, PhpService};
+use crate::options::Launch;
 
 /// What the Orbit lane says answers the name: a Python application given the
 /// same name is refused at its join rather than splitting this one's requests.
@@ -47,79 +48,54 @@ impl Runner {
             .clone()
             .unwrap_or_else(|| self.application.clone());
         claviron::orbit::transport::segment::check_application_name(&name)?;
-        let workers = self.options.runner.workers.unwrap_or(0);
+        // The application restarts inside its process; with workers each has
+        // its own, and the master that watches has none.
         #[cfg(feature = "watch")]
-        if self.options.runner.watch && workers > 0 {
-            // The application restarts inside its process; with workers each
-            // has its own, and the master that watches has none.
+        if self.options.runner.watch && self.options.runner.workers.unwrap_or(0) > 0 {
             return Err(
                 "watch restarts the PHP application in its process: run it standalone".into(),
             );
         }
-        // A worker is started with no command line; what the master resolved
-        // travels to it in the launch.
-        let launch = self.options.encode()?;
-        let resolved = self.options;
+        let config_dir = self.options.config_dir.clone();
+        let mut launch = Launch::from(self.options);
+        let prepared = launch.prepare(name)?;
         let application = self.application;
         Server::new()
-            .name(name.clone())
-            .fleet_name(name.clone())
-            .workers(workers)
-            .launch(launch)
-            .config_dir(&resolved.config_dir)
+            .name(prepared.name.clone())
+            .fleet_name(prepared.name)
+            .workers(prepared.workers)
+            .launch(prepared.envelope)
+            .config_dir(&config_dir)
             .register(move |state| {
-                let options = if state.is_worker() {
-                    state
-                        .registry_ref()
-                        .resolve::<claviron::runtime::LaunchBlob>()
-                        .filter(|blob| !blob.is_empty())
-                        .map(|blob| Options::decode(blob.as_bytes()))
-                        .transpose()
-                        .map_err(|error| registry::Error::msg(error.to_string()))?
-                        .unwrap_or(resolved)
-                } else {
-                    resolved
-                };
-                let runner = &options.runner;
-                // The name the master resolved: a worker's own command line is
-                // empty, so what it read from the file is not what was asked.
-                let name = runner.name.clone().unwrap_or_else(|| application.clone());
+                // A worker serves what its master resolved.
+                let launch = launch.inherited(state)?;
+                let runner = &launch.runner;
                 claviron::runner::supervisor::register_policy(
                     state,
                     runner.supervisor.clone().unwrap_or_default(),
                 )?;
                 claviron::ephp::register(state)?;
                 #[cfg(feature = "broadcast")]
-                if let Some(broadcaster) = &options.broadcast_application {
+                if let Some(broadcaster) = &launch.own.broadcast_application {
                     claviron::laravel::register(state, broadcaster.clone())?;
                 }
 
-                // The owner first, then the application's own registrations,
-                // which compose in front of it.
+                // The owner, then what stands in front of it, then the
+                // application's own registrations, which compose in front.
                 let php = PhpService::new();
                 state
                     .registry_ref()
                     .insert(Arc::new(PhpOwner::new(application.clone(), php.clone())))?;
                 claviron::runner::register_owner(state, Owner::new(php))?;
-                let policy = runner.policy().map_err(registry::Error::msg)?;
-                let routing = Routing::new(policy, runner.max_concurrent_requests);
-                #[cfg(feature = "files")]
-                let routing = routing.files(
-                    runner
-                        .files
-                        .as_ref()
-                        .map(|files| files.parse().map(Arc::new))
-                        .transpose()
-                        .map_err(registry::Error::msg)?,
-                );
-                state.registry_ref().insert(Arc::new(routing))?;
+                let root = std::env::current_dir()
+                    .map_err(|error| registry::Error::msg(error.to_string()))?;
+                launch::register_routing(state, runner, &root)?;
                 configure(state)?;
                 claviron::runner::ensure_application(state)?;
+                launch::register_trust(state, runner)?;
 
                 #[cfg(feature = "watch")]
                 if runner.watch {
-                    let root = std::env::current_dir()
-                        .map_err(|error| registry::Error::msg(error.to_string()))?;
                     let watcher = crate::watch::watcher(
                         root,
                         runner.watch_paths.clone(),
@@ -128,27 +104,15 @@ impl Runner {
                     .map_err(registry::Error::msg)?;
                     state.registry_ref().insert(Arc::new(watcher))?;
                 }
-                let binds = runner.binds();
-                if !binds.is_empty() {
-                    let ingress = SocketIngress::new(binds, runner.protocols());
-                    #[cfg(feature = "tls")]
-                    let ingress = ingress.tls(runner.tls());
-                    state.registry_ref().insert(Arc::new(ingress))?;
-                }
-                if runner.orbit {
-                    // Bounded by the lane's own capacity unless the launch
-                    // says otherwise: work beyond it waits in the lane, where
-                    // the edge sees it.
-                    let max_in_flight = runner
-                        .max_in_flight
-                        .unwrap_or(claviron::orbit::transport::TRANSPORT_INBOX_CAPACITY);
-                    state.registry_ref().insert(Arc::new(OrbitIngress::new(
-                        name,
-                        PHP_RUNTIME,
-                        Some(max_in_flight),
-                    )))?;
-                }
-                Ok(())
+                // Bounded by the lane's own capacity unless the launch says
+                // otherwise: work beyond it waits in the lane, where the edge
+                // sees it.
+                launch::register_doors(
+                    state,
+                    runner,
+                    PHP_RUNTIME,
+                    Some(claviron::orbit::transport::TRANSPORT_INBOX_CAPACITY),
+                )
             })
             .serve()
             .await?;
