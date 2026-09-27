@@ -23,10 +23,13 @@ name-reservation placeholder, not this implementation.**
 | `metrics` | Claviron runtime metrics |
 | `legacy-linux` | Compatibility with Linux kernels older than 5.3 |
 
-`default-features = false` retains embedded PHP, TCP/UDS/Orbit ingress and
+The doors, guards, routing, static mounts, broadcasting, watching and workers
+are Claviron's runner shell (`claviron::runner`), shared with the Python
+runner; `workers: N` in `lumenize.yaml` serves the application from N worker
+processes. `default-features = false` retains embedded PHP, TCP/UDS/Orbit ingress and
 `register_router_with` for a raw Tower service. Neither Axum nor a file watcher
-is selected by that base. `AppBody` follows the chosen adapter; raw callers can
-construct it with `AppBody::new(body)` or `AppBody::empty()`. These features do
+is selected by that base. A raw service takes the shell's `AppRequest`, whose
+body is `RequestBody` (`RequestBody::new(body)`, `RequestBody::empty()`). These features do
 not select Claviron's edge, virtual hosts or another language runtime. TLS and
 watch also work without Axum. CLI belongs to the application's binary and is
 never enabled implicitly by another feature.
@@ -68,9 +71,9 @@ is returned unchanged, including a 404. Pass a router without a custom fallback.
 Omit route registration for a PHP-only application. The runner validates its
 named PHP application before ingress starts.
 
-For custom dispatch, `register_router_with(state, |php| service)` accepts a
-cloneable Tower service over `AppRequest` and adds no fallback. The `PhpService`
-handle can be used with `.fallback_service(php)`, mounted on a subtree, or called
+For custom dispatch, `register_router_with(state, |owner| service)` accepts a
+cloneable Tower service over `AppRequest` and adds no fallback. The `Owner`
+handle can be used with `.fallback_service(owner)`, mounted on a subtree, or called
 explicitly. Its adapter is resolved during boot; neither registration API boots
 or resolves PHP while the callback is running. Both APIs use the same ingress
 admission and body guards.

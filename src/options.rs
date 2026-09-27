@@ -1,133 +1,114 @@
-use std::net::SocketAddr;
+//! A launch: what every Claviron runner's launch says alike — its name, doors,
+//! trust, request policy, static mounts, watching and workers — and the two
+//! keys that are Lumenize's own. One flat `lumenize.yaml` holds both.
 use std::path::{Path, PathBuf};
 
-use claviron::http::policy::{HttpPolicy, RequestPolicyOverride, ResponsePolicyOverride};
-use serde::Deserialize;
+use claviron::runner::RunnerOptions;
+use claviron::runner::options::{merge, split};
+use serde::{Deserialize, Serialize};
 
 /// Deployment options; PHP engine and application policy stay in php.yaml.
-#[derive(Clone, Debug, Deserialize)]
-#[serde(default, deny_unknown_fields)]
+#[derive(Clone, Debug)]
+#[cfg_attr(feature = "cli", derive(clap::Parser))]
+#[cfg_attr(
+    feature = "cli",
+    command(about = "Serve a Laravel application through Claviron embedded PHP")
+)]
 pub struct Options {
-    pub name: Option<String>,
+    /// The name, doors, trust, request policy, static mounts, watching and
+    /// workers.
+    #[cfg_attr(feature = "cli", command(flatten))]
+    pub runner: RunnerOptions,
+
+    /// Where Claviron's runtime configuration (`php.yaml`, `broadcast.yaml`,
+    /// `logging.yaml`) is read from.
+    #[cfg_attr(feature = "cli", arg(long, default_value = "config/runtime"))]
     pub config_dir: PathBuf,
-    pub tcp: Option<SocketAddr>,
-    /// Serve TLS on the TCP listener with this certificate chain and key.
-    #[cfg(feature = "tls")]
-    pub tls_cert: Option<PathBuf>,
-    #[cfg(feature = "tls")]
-    pub tls_key: Option<PathBuf>,
-    /// Require clients to present a certificate signed by this CA.
-    #[cfg(feature = "tls")]
-    pub tls_client_ca: Option<PathBuf>,
-    pub uds: Option<PathBuf>,
-    pub orbit: bool,
-    /// Restart the PHP application on source changes (development only).
-    #[cfg(feature = "watch")]
-    pub watch: bool,
-    /// Source files/directories; empty selects existing Laravel source paths.
-    #[cfg(feature = "watch")]
-    pub watch_paths: Vec<PathBuf>,
-    /// Explicit static mounts served before application routes.
-    #[cfg(feature = "files")]
-    pub files: Option<std::sync::Arc<crate::Files>>,
-    /// Broadcast application whose service is exposed to the native PHP broadcaster.
+
+    /// Broadcast application whose service is exposed to the native PHP
+    /// broadcaster. Written in the file only.
     #[cfg(feature = "broadcast")]
+    #[cfg_attr(feature = "cli", arg(skip))]
     pub broadcast_application: Option<String>,
-    /// Maximum accepted Orbit exchanges; waiting work remains in the visible lane.
-    pub max_in_flight: usize,
-    /// Shared request admission across all connections and ingress paths.
-    #[serde(
-        default,
-        deserialize_with = "claviron::http::tuning::optional_count_limit"
-    )]
-    pub max_concurrent_requests: Option<claviron::http::policy::Limit<usize>>,
-    pub requests: RequestPolicyOverride,
-    pub responses: ResponsePolicyOverride,
 }
+
 impl Default for Options {
     fn default() -> Self {
         Self {
-            name: None,
+            runner: RunnerOptions::default(),
             config_dir: "config/runtime".into(),
-            tcp: None,
-            #[cfg(feature = "tls")]
-            tls_cert: None,
-            #[cfg(feature = "tls")]
-            tls_key: None,
-            #[cfg(feature = "tls")]
-            tls_client_ca: None,
-            uds: None,
-            orbit: false,
-            #[cfg(feature = "watch")]
-            watch: false,
-            #[cfg(feature = "watch")]
-            watch_paths: Vec::new(),
-            #[cfg(feature = "files")]
-            files: None,
             #[cfg(feature = "broadcast")]
             broadcast_application: None,
-            max_in_flight: default_max_in_flight(),
-            max_concurrent_requests: None,
-            requests: Default::default(),
-            responses: Default::default(),
         }
     }
 }
-fn default_max_in_flight() -> usize {
-    claviron::orbit::transport::TRANSPORT_INBOX_CAPACITY
+
+/// Lumenize's own keys, beside the runner's in the same flat file.
+#[derive(Default, Serialize, Deserialize)]
+#[serde(default, deny_unknown_fields)]
+struct Own {
+    config_dir: Option<PathBuf>,
+    #[cfg(feature = "broadcast")]
+    broadcast_application: Option<String>,
 }
+
+impl Serialize for Options {
+    fn serialize<S: serde::Serializer>(
+        &self,
+        serializer: S,
+    ) -> Result<S::Ok, S::Error> {
+        use serde::ser::Error;
+        let own = Own {
+            config_dir: Some(self.config_dir.clone()),
+            #[cfg(feature = "broadcast")]
+            broadcast_application: self.broadcast_application.clone(),
+        };
+        let shared = serde_yaml::to_value(&self.runner).map_err(S::Error::custom)?;
+        let own = serde_yaml::to_value(&own).map_err(S::Error::custom)?;
+        merge(shared, own).serialize(serializer)
+    }
+}
+
+impl<'de> Deserialize<'de> for Options {
+    fn deserialize<D: serde::Deserializer<'de>>(deserializer: D) -> Result<Self, D::Error> {
+        use serde::de::Error;
+        let file = serde_yaml::Value::deserialize(deserializer)?;
+        let (shared, own) = split(file).map_err(D::Error::custom)?;
+        let runner: RunnerOptions = serde_yaml::from_value(shared).map_err(D::Error::custom)?;
+        // A key neither side knows lands here; the list of what is known is
+        // both halves, or the message would point away from the fix.
+        let own: Own = serde_yaml::from_value(own).map_err(|error| {
+            D::Error::custom(format!(
+                "{error}, or one of the runner's: {}",
+                RunnerOptions::KEYS.join(", ")
+            ))
+        })?;
+        Ok(Self {
+            runner,
+            config_dir: own.config_dir.unwrap_or_else(|| "config/runtime".into()),
+            #[cfg(feature = "broadcast")]
+            broadcast_application: own.broadcast_application,
+        })
+    }
+}
+
 impl Options {
     pub fn from_file(path: impl AsRef<Path>) -> crate::Result<Self> {
         Ok(serde_yaml::from_str(&std::fs::read_to_string(path)?)?)
     }
 
+    /// What cannot be served as written, said before anything starts.
     pub fn validate(&self) -> crate::Result<()> {
-        #[cfg(feature = "files")]
-        if let Some(files) = &self.files {
-            files.validate()?;
-        }
-        #[cfg(feature = "tls")]
-        {
-            if self.tls_cert.is_some() != self.tls_key.is_some() {
-                return Err("tls_cert and tls_key must be supplied together".into());
-            }
-            if self.tls_client_ca.is_some() && self.tls_cert.is_none() {
-                return Err("tls_client_ca requires tls_cert and tls_key".into());
-            }
-            if self.tls_cert.is_some() && self.tcp.is_none() {
-                return Err("TLS requires a tcp listener".into());
-            }
-        }
-        if self.tcp.is_none() && self.uds.is_none() && !self.orbit {
+        self.runner.validate()?;
+        if self.runner.tcp.is_none() && self.runner.uds.is_none() && !self.runner.orbit {
             return Err("select tcp, uds or orbit ingress".into());
-        }
-        if self.max_in_flight == 0 {
-            return Err("max_in_flight must be positive".into());
-        }
-        if self
-            .max_concurrent_requests
-            .and_then(|limit| limit.value())
-            .is_some_and(|max| max == 0 || max > tokio::sync::Semaphore::MAX_PERMITS)
-        {
-            return Err(
-                "max_concurrent_requests must be positive and within semaphore capacity, or off"
-                    .into(),
-            );
-        }
-        if self.uds.as_ref().is_some_and(|p| p.as_os_str().is_empty()) {
-            return Err("uds path must not be empty".into());
         }
         Ok(())
     }
 
-    pub(crate) fn policy(&self) -> HttpPolicy {
-        HttpPolicy::unlimited().narrow(&claviron::http::policy::HttpPolicyOverride {
-            requests: self.requests,
-            responses: self.responses,
-        })
-    }
-
-    /// CLI overrides the selected file. No implicit listener or timeout is added.
+    /// The file the command line names (`lumenize.yaml` by default), with the
+    /// command line standing over it wherever it said anything. No listener
+    /// or timeout is added that neither wrote.
     #[cfg(feature = "cli")]
     pub fn from_args() -> crate::Result<Self> {
         use clap::Parser;
@@ -137,66 +118,33 @@ impl Options {
             #[arg(long, default_value = "lumenize.yaml")]
             config: PathBuf,
             #[arg(long)]
-            name: Option<String>,
-            #[arg(long)]
             config_dir: Option<PathBuf>,
-            #[arg(long)]
-            tcp: Option<SocketAddr>,
-            #[cfg(feature = "tls")]
-            #[arg(long)]
-            tls_cert: Option<PathBuf>,
-            #[cfg(feature = "tls")]
-            #[arg(long)]
-            tls_key: Option<PathBuf>,
-            #[cfg(feature = "tls")]
-            #[arg(long)]
-            tls_client_ca: Option<PathBuf>,
-            #[arg(long)]
-            uds: Option<PathBuf>,
-            #[arg(long)]
-            orbit: bool,
-            #[cfg(feature = "watch")]
-            #[arg(long)]
-            watch: bool,
-            #[cfg(feature = "watch")]
-            #[arg(long = "watch-path")]
-            watch_paths: Vec<PathBuf>,
-            #[arg(long)]
-            max_in_flight: Option<usize>,
+            #[command(flatten)]
+            runner: RunnerOptions,
         }
         let args = Args::parse();
-        let mut options = Self::from_file(&args.config)?;
-        if args.name.is_some() {
-            options.name = args.name;
-        }
-        if let Some(dir) = args.config_dir {
-            options.config_dir = dir;
-        }
-        if args.tcp.is_some() {
-            options.tcp = args.tcp;
-        }
-        if args.uds.is_some() {
-            options.uds = args.uds;
-        }
-        options.orbit |= args.orbit;
-        #[cfg(feature = "watch")]
-        {
-            options.watch |= args.watch;
-            if !args.watch_paths.is_empty() {
-                options.watch_paths = args.watch_paths;
-            }
-        }
-        // Validate after merging, so a CLI override can use the file's key/CA.
-        #[cfg(feature = "tls")]
-        {
-            options.tls_cert = args.tls_cert.or(options.tls_cert);
-            options.tls_key = args.tls_key.or(options.tls_key);
-            options.tls_client_ca = args.tls_client_ca.or(options.tls_client_ca);
-        }
-        if let Some(limit) = args.max_in_flight {
-            options.max_in_flight = limit;
-        }
+        let written = Self::from_file(&args.config)?;
+        let options = Self {
+            runner: args.runner.over(written.runner),
+            config_dir: args.config_dir.unwrap_or(written.config_dir),
+            #[cfg(feature = "broadcast")]
+            broadcast_application: written.broadcast_application,
+        };
         options.validate()?;
         Ok(options)
     }
+
+    /// These options for a worker to inherit: it is started with no command
+    /// line, so the launch its master resolved travels in the envelope.
+    pub(crate) fn encode(&self) -> crate::Result<Vec<u8>> {
+        Ok(serde_json::to_vec(self)?)
+    }
+
+    pub(crate) fn decode(bytes: &[u8]) -> crate::Result<Self> {
+        Ok(serde_json::from_slice(bytes)?)
+    }
 }
+
+#[cfg(test)]
+#[path = "../tests/options.rs"]
+mod tests;

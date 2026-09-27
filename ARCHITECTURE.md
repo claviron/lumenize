@@ -36,7 +36,7 @@ The runner loads `php.yaml`; the application's registration callback owns Rust
 providers and services and calls `lumenize::register_router(state, routes::router)`
 with a `FnOnce(AppState) -> Router` builder. The registered service uses PHP as
 the fallback for undeclared paths and methods. `register_router_with` instead
-hands the builder a lazy `PhpService` and registers its Tower service unchanged;
+hands the builder the shell's `Owner` and registers its Tower service unchanged;
 the application decides where PHP belongs. Both registrations use one provider
 type, so duplicate registrations fail. `Application` resolves and binds the
 shared PHP adapter in boot and validates the selected PHP name
@@ -138,118 +138,27 @@ different owners. Fleet validation and transport protocol changes must land in
 the common runtime before a downstream launch depends on them. Do not assign
 new ring kinds or copy the transport into the runner to create isolation.
 
-## Ingress and shutdown
+## The runner shell
 
-`SocketIngress` binds all selected sockets before accepting. Existing Unix
-socket paths cause bind failure; cleanup removes only the inode this generation
-created. H1/H2 share one handler. The optional `tls` feature wraps the TCP listener
-with one certificate and optional client-CA verification. Material is loaded
-before binding sockets; renewal requires restart. ALPN advertises H2/H1.
-Handshakes run in the same owned JoinSet, observe listener cancellation, and
-introduce no timeout. Verified TLS facts and the physical HTTPS scheme travel
-in request context. Unix sockets and Orbit retain their own transport semantics.
-Shutdown stops accepts, asks each connection to
-shut down gracefully, and joins accepted connections without adding a deadline.
-A local cancellation token also ends connections when an accept fails.
+Everything a runner does alike is Claviron's runner shell (`claviron::runner`,
+`crates/runner` in Claviron): the TCP/Unix socket ingress (HTTP/1 and HTTP/2,
+TLS, upgrades, trusted forwarding headers), the Orbit ingress, the guards and
+admission, the routing order, static mounts, broadcasting, source watching,
+the launch's shared options and the workers. Its own `ARCHITECTURE.md` is
+where they are described; the same code serves the Python runner.
 
-Native sockets also own a Claviron `SessionOwner` and connection gate. Hyper's
-upgrade-capable connection driver passes the session capability and physical
-connection context to dispatch; a Unix socket has unspecified IP addresses.
-On shutdown the listener seals session submissions, closes gate admission,
-drains HTTP connections, and joins the owned upgraded sessions. No session task
-is detached and no shutdown deadline is introduced.
+What Lumenize adds is the owner and what is Laravel's:
 
-`Application` refuses ambiguous framing and unsupported upgrades, checks declared
-request length, wraps incoming bodies in `GuardedBody`, and wraps outgoing bodies
-in `guard_reply`. Policies come from `Options`; PHP execution, admission and
-recycling policy remain in `php.yaml`. Socket metadata reflects the physical
-connection. Orbit reconstructs the original edge peer/scheme facts.
-
-Claviron's `Admission` wraps the common dispatch, including direct TCP/UDS:
-`max_concurrent_requests` bounds requests until their response head,
-`requests.queue_timeout` bounds waiting for a place, and `head_within` applies
-`requests.head_timeout` to service readiness and execution. Queue expiry returns
-503; late heads return 504. No value is invented when a limit is omitted.
-The admission place ends at the response head, independent of body streaming.
-
-`OrbitIngress` joins the named transport fleet as runtime `php`. A native-wait
-reader hands frames into a single-entry channel, while `max_in_flight` bounds
-accepted exchange tasks. Waiting work stays in the visible inbox. Shutdown
-releases the lane first, then signals and nudges the reader, drains the handoff,
-joins the reader and completes accepted exchanges. This follows the common
-transport ownership contract; it does not clear shared-memory segments.
-
-Request reads use declared Content-Length, clamped to one transport window;
-unknown lengths use the window. A complete response whose exact length fits
-one window is written and closed before publishing its head. Larger or unknown
-bodies publish their head first, then stream under backpressure. Both use the
-same body ticket protocol. Body errors reset the outgoing stream.
-
-The transport receives request bodies incrementally, but the current shared PHP
-application service collects them before delivering a request to Laravel. This
-is not ASGI-style incremental request delivery into PHP. Synchronous PHP does
-not itself require buffering; changing that boundary belongs to the shared PHP
-application protocol. Response behavior follows the shared PHP response API.
-
-## Optional Broadcast service
-
-The `broadcast` feature selects the existing Claviron Laravel/Broadcast composition,
-without selecting the edge preset. Claviron registers Broadcast from `broadcast.yaml`.
-When `broadcast_application` names an application, the runner registers Claviron's
-native Laravel PHP extension for it before PHP boots. That extension resolves
-the same Broadcast service used by the WebSocket endpoints; Laravel broadcasts
-and notifications publish locally through the native function.
-
-During boot, application dispatch wraps the user service with Broadcast's signed
-REST publication routes and the shared HTTP/1 upgrade middleware. Configured
-app-key paths are exact matches. Native GET/H1 upgrades require listener session
-ownership and use Broadcast's fastwebsockets adapter. Orbit ingress validates the
-upgrade request and app key, admits a Broadcast generation permit, then publishes
-101 and runs its Orbit message adapter inside the ingress JoinSet. Rejections
-close the reply direction before publishing their HTTP status; no Broadcast feature
-or unknown app key returns 404. No session task is detached.
-
-Broadcast owns the shared message loop, channel authorization, session cancellation
-and fleet fanout. Lumenize supplies ingress ownership and route composition.
-The separate edge owns public hosts, TLS, the WebSocket handshake and wire
-framing. Orbit uses the existing duplex slot and message records, with native
-wakeups and backpressure; it requires no application TCP/UDS listener.
-
-## Optional application assets
-
-The `files` feature selects `claviron/files`, independently of `edge`. The facade
-registers the existing file-cache provider in its server lifecycle. Lumenize's
-`Files` configuration implements `FileSite` for one application and supplies
-explicit `statics` mounts to the shared middleware; no host registry is involved.
-File dispatch surrounds the Rust/PHP fallback and is inside Broadcast endpoints
-and the existing admission/body guards. It applies to all ingress paths. Only
-GET/HEAD probe files; HEAD retains headers and omits the body. Mount matching,
-file confinement, dynamic-extension protection, caching and conditional responses
-remain owned by Claviron. Unmatched paths continue to the application's service.
-
-## Feature ownership and development watch
-
-The default `axum` feature owns `register_router` and its router/body adapter.
-The raw `register_router_with` API and PHP dispatch also build without Axum;
-Claviron's `http` facade exposes transport primitives separately. `files` and
-`broadcast` select Axum for their existing middleware. `cli`, `tls`, `watch`,
-`metrics` and `legacy-linux` declare their own dependencies. `log` selects
-Claviron's log pipeline, which Claviron's bootstrap registers from
-`config_dir/logging.yaml` and hands to embedded PHP; Lumenize adds no code for
-it. No feature selects
-`edge`; a base build selects neither Axum nor the filesystem watcher.
-
-`watch` registers a source-watching provider only when explicitly enabled in
-options. Native notifications retain one pending wake, ignore read events, and
-propagate watcher errors. Paths belong to the application; no timer is invented.
-The provider subscribes to application-start events before checking status and
-uses the process-local `ApplicationManager` to restart only its named PHP
-application. PHP owns generation drain, retry and startup. Watch owns its native
-subscription, cancels on runtime shutdown and awaits callback release; finalization
-also closes a subscription created during boot if no runnable started.
-
-Watch requires development PHP settings with OPcache disabled; it does not
-pretend that restarting a pool clears shared bytecode. Runtime configuration and
-environment remain sealed, and source watching does not rebuild Rust or restart
-listeners/Broadcast. Shared-filesystem notifications are platform dependent and
-there is no polling fallback.
+- **The owner** is the named php.yaml application, bound when PHP boots
+  (`PhpOwner`); it answers what the routes, files and broadcasting in front
+  of it did not claim. Its Orbit lane says `php`.
+- **Options** are one flat `lumenize.yaml`: the runner's shared keys beside
+  Lumenize's own `config_dir` and `broadcast_application`.
+- **Broadcasting** from PHP: `broadcast_application` registers Claviron's
+  native Laravel publisher; the Pusher endpoints themselves are the shell's.
+- **Watching** takes Laravel's source directories and restarts the PHP
+  application in its process once it has started. It refuses workers: with
+  them each worker has its own application and the watching master has none.
+- **Workers** come from the shell with `workers:`; each worker boots its own
+  PHP and takes its own lane, and receives the master's resolved launch, since
+  it starts with no command line.
