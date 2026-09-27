@@ -91,7 +91,7 @@ impl Broadcast {
             .ok_or(StatusCode::NOT_FOUND)?;
         self.service
             .accept_session(Arc::from(application))
-            .map_err(|_| StatusCode::SERVICE_UNAVAILABLE)
+            .map_err(|refusal| refusal.status())
     }
 
     pub fn accepts(
