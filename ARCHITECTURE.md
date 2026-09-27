@@ -233,7 +233,10 @@ The default `axum` feature owns `register_router` and its router/body adapter.
 The raw `register_router_with` API and PHP dispatch also build without Axum;
 Claviron's `http` facade exposes transport primitives separately. `files` and
 `broadcast` select Axum for their existing middleware. `cli`, `tls`, `watch`,
-`metrics` and `legacy-linux` declare their own dependencies. No feature selects
+`metrics` and `legacy-linux` declare their own dependencies. `log` selects
+Claviron's log pipeline, which Claviron's bootstrap registers from
+`config_dir/logging.yaml` and hands to embedded PHP; Lumenize adds no code for
+it. No feature selects
 `edge`; a base build selects neither Axum nor the filesystem watcher.
 
 `watch` registers a source-watching provider only when explicitly enabled in

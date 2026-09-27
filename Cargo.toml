@@ -28,6 +28,12 @@ files = ["axum", "claviron/files"]
 broadcast = ["axum", "claviron/laravel"]
 # PHP source watching for development; production carries no watcher by default.
 watch = ["dep:notify"]
+# Claviron's log pipeline for this application's fleet: the channels
+# `logging.yaml` beside the configuration declares, written by the master's one
+# writer. PHP reaches them through `claviron_log()` and the `claviron` log
+# driver. `log-otlp` adds the OTLP adapter.
+log = ["claviron/log-pipeline"]
+log-otlp = ["log", "claviron/log-otlp"]
 metrics = ["claviron/metrics"]
 # Explicit compatibility with Linux kernels older than 5.3 (no pidfd).
 legacy-linux = ["claviron/legacy-linux"]

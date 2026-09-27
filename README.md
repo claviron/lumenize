@@ -18,6 +18,8 @@ name-reservation placeholder, not this implementation.**
 | `files` | Explicit static mounts; selects the Axum adapter |
 | `broadcast` | Native Laravel broadcasting and socket endpoints; selects Axum |
 | `watch` | Native source notifications and PHP application restarts for development |
+| `log` | Log channels from `logging.yaml` for Laravel's `claviron` log driver |
+| `log-otlp` | `log` plus the OTLP channel adapter |
 | `metrics` | Claviron runtime metrics |
 | `legacy-linux` | Compatibility with Linux kernels older than 5.3 |
 
@@ -90,6 +92,27 @@ The optional `cli` Cargo feature exposes `Options::from_args()`: `--config`,
 `--config-dir`, `--name`, `--tcp`, `--uds`, `--orbit` and `--max-in-flight`.
 CLI flags override or enable entries in the selected file; use a separate
 configuration file to disable an ingress. No listener is enabled implicitly.
+
+## Log channels
+
+Enable `log` to give the application's fleet the channels a `logging.yaml` in
+`config_dir` declares:
+
+```yaml
+channels:
+  laravel:
+    adapter: file
+    path: storage/logs/claviron-laravel.log
+    format: json
+```
+
+Each worker copies a record into its lane of a shared-memory ring and returns;
+the master's one writer formats and writes it. Laravel reaches a channel through
+the `claviron` log driver that `claviron/laravel` registers (a Monolog handler
+from `claviron/monolog`). Select it for the runtime only, by setting
+`LOG_CHANNEL: claviron` in the application's `env` in `php.yaml`; `php artisan`
+from a shell keeps the channel `.env` names. Without the file, nothing is
+registered.
 
 ## Development source watching
 
