@@ -17,6 +17,8 @@ pub(crate) struct Application {
     policy: HttpPolicy,
     router: OnceLock<crate::routing::AppService>,
     admission: Admission,
+    #[cfg(feature = "files")]
+    files: Option<Arc<crate::Files>>,
     #[cfg(feature = "broadcast")]
     broadcast: OnceLock<crate::broadcast::Broadcast>,
 }
@@ -31,9 +33,20 @@ impl Application {
             policy,
             router: OnceLock::new(),
             admission: Admission::limited(max_concurrent_requests),
+            #[cfg(feature = "files")]
+            files: None,
             #[cfg(feature = "broadcast")]
             broadcast: OnceLock::new(),
         }
+    }
+
+    #[cfg(feature = "files")]
+    pub(crate) fn with_files(
+        mut self,
+        files: Option<Arc<crate::Files>>,
+    ) -> Self {
+        self.files = files;
+        self
     }
 
     fn prepare(
@@ -86,10 +99,10 @@ impl Application {
             match self.router.get() {
                 Some(router) => match router
                     .clone()
-                    .oneshot(request.map(claviron::axum::body::Body::new))
+                    .oneshot(request.map(crate::routing::body))
                     .await
                 {
-                    Ok(reply) => reply.map(claviron::http::boxed_body),
+                    Ok(reply) => reply.map(crate::routing::route_body),
                     Err(never) => match never {},
                 },
                 None => status(StatusCode::SERVICE_UNAVAILABLE),
@@ -175,6 +188,8 @@ impl Provider<AppState> for Application {
                 php.bind(adapter);
                 crate::routing::AppService::new(php)
             };
+        #[cfg(feature = "files")]
+        let router = crate::files::wrap(self.files.clone(), router);
         #[cfg(feature = "broadcast")]
         let router = {
             let (broadcast, router) = crate::broadcast::Broadcast::wrap(state, router)?;

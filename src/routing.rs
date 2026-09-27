@@ -4,8 +4,9 @@ use std::pin::Pin;
 use std::sync::{Arc, OnceLock};
 use std::task::{Context, Poll};
 
+#[cfg(feature = "axum")]
 use claviron::axum::Router;
-use claviron::axum::body::Body;
+#[cfg(feature = "axum")]
 use claviron::axum::handler::Handler;
 use claviron::ephp::PhpApplicationAdapter;
 use claviron::runtime::{AppState, Provider, registry};
@@ -13,10 +14,68 @@ use http::{Request, Response};
 use tower::util::BoxCloneSyncService;
 use tower::{Service, ServiceExt};
 
+/// Body used by the selected routing adapter.
+#[cfg(feature = "axum")]
+pub type AppBody = claviron::axum::body::Body;
+#[cfg(not(feature = "axum"))]
+pub struct AppBody(claviron::http::RouteBody);
+
+#[cfg(not(feature = "axum"))]
+impl AppBody {
+    pub fn new<B>(value: B) -> Self
+    where
+        B: http_body::Body<Data = bytes::Bytes> + Send + 'static,
+        B::Error: Into<crate::Error>,
+    {
+        Self(route_body(value))
+    }
+
+    pub fn empty() -> Self {
+        Self(claviron::http::empty_body())
+    }
+}
+#[cfg(not(feature = "axum"))]
+impl http_body::Body for AppBody {
+    type Data = bytes::Bytes;
+    type Error = crate::Error;
+
+    fn poll_frame(
+        mut self: Pin<&mut Self>,
+        cx: &mut Context<'_>,
+    ) -> Poll<Option<Result<http_body::Frame<Self::Data>, Self::Error>>> {
+        Pin::new(&mut self.0).poll_frame(cx)
+    }
+
+    fn is_end_stream(&self) -> bool {
+        self.0.is_end_stream()
+    }
+
+    fn size_hint(&self) -> http_body::SizeHint {
+        self.0.size_hint()
+    }
+}
+
+pub(crate) fn body<B>(value: B) -> AppBody
+where
+    B: http_body::Body<Data = bytes::Bytes> + Send + 'static,
+    B::Error: Into<crate::Error>,
+{
+    AppBody::new(value)
+}
+
+pub(crate) fn route_body<B>(value: B) -> claviron::http::RouteBody
+where
+    B: http_body::Body<Data = bytes::Bytes> + Send + 'static,
+    B::Error: Into<crate::Error>,
+{
+    use http_body_util::BodyExt;
+    value.map_err(Into::into).boxed_unsync()
+}
+
 /// Request delivered to a custom service, with a streaming body.
-pub type AppRequest = Request<Body>;
+pub type AppRequest = Request<AppBody>;
 /// Response returned by the PHP service.
-pub type AppResponse = Response<Body>;
+pub type AppResponse = Response<AppBody>;
 pub(crate) type AppService = BoxCloneSyncService<AppRequest, AppResponse, Infallible>;
 
 pub(crate) struct RustRoutes {
@@ -49,10 +108,8 @@ impl PhpService {
         request: AppRequest,
     ) -> AppResponse {
         let adapter = self.0.get().expect("PHP boots before ingress starts");
-        let Ok(response) = adapter
-            .handle(request.map(claviron::http::boxed_body))
-            .await;
-        response.map(Body::new)
+        let Ok(response) = adapter.handle(request.map(route_body)).await;
+        response.map(body)
     }
 }
 
@@ -89,6 +146,7 @@ impl Provider<AppState> for RustRoutes {
 /// using a handle bound to the shared PHP application service during boot.
 /// The builder receives the application's state: `register_router(state, routes::router)`.
 /// Omitting this registration serves every request through PHP.
+#[cfg(feature = "axum")]
 pub fn register_router<F>(
     state: &AppState,
     build: F,
@@ -125,11 +183,11 @@ where
         + Sync
         + 'static,
     S::Future: Send + 'static,
-    B: http_body::Body<Data = claviron::axum::body::Bytes> + Send + 'static,
+    B: http_body::Body<Data = bytes::Bytes> + Send + 'static,
     B::Error: Into<crate::Error>,
 {
     let php = PhpService::new();
-    let service = build(php.clone()).map_response(|response| response.map(Body::new));
+    let service = build(php.clone()).map_response(|response| response.map(body));
     state.registry_ref().insert(Arc::new(RustRoutes {
         service: AppService::new(service),
         php,
@@ -137,6 +195,7 @@ where
     Ok(())
 }
 
+#[cfg(feature = "axum")]
 pub(crate) fn compose<H, T>(
     router: Router,
     fallback: H,
@@ -150,6 +209,10 @@ where
         .method_not_allowed_fallback(fallback)
 }
 
-#[cfg(test)]
+#[cfg(all(test, feature = "axum"))]
 #[path = "../tests/routing.rs"]
 mod tests;
+
+#[cfg(test)]
+#[path = "../tests/raw_routing.rs"]
+mod raw_tests;

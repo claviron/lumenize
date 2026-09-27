@@ -142,7 +142,13 @@ new ring kinds or copy the transport into the runner to create isolation.
 
 `SocketIngress` binds all selected sockets before accepting. Existing Unix
 socket paths cause bind failure; cleanup removes only the inode this generation
-created. H1/H2 share one handler. Shutdown stops accepts, asks each connection to
+created. H1/H2 share one handler. The optional `tls` feature wraps the TCP listener
+with one certificate and optional client-CA verification. Material is loaded
+before binding sockets; renewal requires restart. ALPN advertises H2/H1.
+Handshakes run in the same owned JoinSet, observe listener cancellation, and
+introduce no timeout. Verified TLS facts and the physical HTTPS scheme travel
+in request context. Unix sockets and Orbit retain their own transport semantics.
+Shutdown stops accepts, asks each connection to
 shut down gracefully, and joins accepted connections without adding a deadline.
 A local cancellation token also ends connections when an accept fails.
 
@@ -185,7 +191,7 @@ is not ASGI-style incremental request delivery into PHP. Synchronous PHP does
 not itself require buffering; changing that boundary belongs to the shared PHP
 application protocol. Response behavior follows the shared PHP response API.
 
-## Optional Pusher service
+## Optional Broadcast service
 
 The `broadcast` feature selects the existing Claviron Laravel/Broadcast composition,
 without selecting the edge preset. Claviron registers Broadcast from `broadcast.yaml`.
@@ -200,7 +206,7 @@ app-key paths are exact matches. Native GET/H1 upgrades require listener session
 ownership and use Broadcast's fastwebsockets adapter. Orbit ingress validates the
 upgrade request and app key, admits a Broadcast generation permit, then publishes
 101 and runs its Orbit message adapter inside the ingress JoinSet. Rejections
-close the reply direction before publishing their HTTP status; no Pusher feature
+close the reply direction before publishing their HTTP status; no Broadcast feature
 or unknown app key returns 404. No session task is detached.
 
 Broadcast owns the shared message loop, channel authorization, session cancellation
@@ -208,3 +214,39 @@ and fleet fanout. Lumenize supplies ingress ownership and route composition.
 The separate edge owns public hosts, TLS, the WebSocket handshake and wire
 framing. Orbit uses the existing duplex slot and message records, with native
 wakeups and backpressure; it requires no application TCP/UDS listener.
+
+## Optional application assets
+
+The `files` feature selects `claviron/files`, independently of `edge`. The facade
+registers the existing file-cache provider in its server lifecycle. Lumenize's
+`Files` configuration implements `FileSite` for one application and supplies
+explicit `statics` mounts to the shared middleware; no host registry is involved.
+File dispatch surrounds the Rust/PHP fallback and is inside Broadcast endpoints
+and the existing admission/body guards. It applies to all ingress paths. Only
+GET/HEAD probe files; HEAD retains headers and omits the body. Mount matching,
+file confinement, dynamic-extension protection, caching and conditional responses
+remain owned by Claviron. Unmatched paths continue to the application's service.
+
+## Feature ownership and development watch
+
+The default `axum` feature owns `register_router` and its router/body adapter.
+The raw `register_router_with` API and PHP dispatch also build without Axum;
+Claviron's `http` facade exposes transport primitives separately. `files` and
+`broadcast` select Axum for their existing middleware. `cli`, `tls`, `watch`,
+`metrics` and `legacy-linux` declare their own dependencies. No feature selects
+`edge`; a base build selects neither Axum nor the filesystem watcher.
+
+`watch` registers a source-watching provider only when explicitly enabled in
+options. Native notifications retain one pending wake, ignore read events, and
+propagate watcher errors. Paths belong to the application; no timer is invented.
+The provider subscribes to application-start events before checking status and
+uses the process-local `ApplicationManager` to restart only its named PHP
+application. PHP owns generation drain, retry and startup. Watch owns its native
+subscription, cancels on runtime shutdown and awaits callback release; finalization
+also closes a subscription created during boot if no runnable started.
+
+Watch requires development PHP settings with OPcache disabled; it does not
+pretend that restarting a pool clears shared bytecode. Runtime configuration and
+environment remain sealed, and source watching does not rebuild Rust or restart
+listeners/Broadcast. Shared-filesystem notifications are platform dependent and
+there is no polling fallback.

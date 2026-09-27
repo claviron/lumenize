@@ -13,28 +13,47 @@ include = ["src/**", "tests/**", "Cargo.toml", "README.md", "ARCHITECTURE.md", "
 keywords = ["php", "laravel", "runtime", "claviron", "starter-kit"]
 categories = ["web-programming::http-server"]
 
+# Axum is the default routing adapter; the PHP engine and raw Tower service
+# remain usable with default-features = false.
 [features]
-default = []
+default = ["axum"]
+axum = ["claviron/axum"]
+# The application's binary owns argv; opt in where main reads Options::from_args.
 cli = ["dep:clap"]
-broadcast = ["claviron/laravel"]
+# One application's TCP certificate, optionally with client authentication.
+tls = ["dep:rustls-pemfile", "dep:tokio-rustls"]
+# Static mounts reuse Claviron's file middleware; no edge/vhost runtime.
+files = ["axum", "claviron/files"]
+# Native Laravel broadcasting and its HTTP/WebSocket adapters in this process.
+broadcast = ["axum", "claviron/laravel"]
+# PHP source watching for development; production carries no watcher by default.
+watch = ["dep:notify"]
+metrics = ["claviron/metrics"]
+# Explicit compatibility with Linux kernels older than 5.3 (no pidfd).
+legacy-linux = ["claviron/legacy-linux"]
 
 [dependencies]
-claviron = { path = "../claviron", default-features = false, features = ["server", "axum", "php_embed"] }
+claviron = { path = "../claviron", default-features = false, features = ["server", "http", "php_embed"] }
 async-trait = "0.1"
+bytes = "1"
+notify = { version = "8.2", optional = true }
 clap = { version = "4", features = ["derive"], optional = true }
 http = "1"
 http-body = "1"
 http-body-util = "0.1"
 hyper = { version = "1", features = ["server", "http1", "http2"] }
 hyper-util = { version = "0.1", features = ["server-auto", "tokio"] }
-serde = { version = "1", features = ["derive"] }
+serde = { version = "1", features = ["derive", "rc"] }
 serde_yaml = "0.9"
 tokio = { version = "1", features = ["macros", "rt-multi-thread", "net", "sync", "io-util"] }
 tokio-util = { version = "0.7", features = ["io"] }
 tokio-stream = "0.1"
 tracing = "0.1"
 tower = { version = "0.5", features = ["util"] }
+rustls-pemfile = { version = "2", optional = true }
+tokio-rustls = { version = "0.26", optional = true }
 
 [dev-dependencies]
 tokio = { version = "1", features = ["test-util"] }
 tempfile = "3"
+rcgen = "0.14"

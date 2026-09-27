@@ -11,8 +11,25 @@ pub struct Options {
     pub name: Option<String>,
     pub config_dir: PathBuf,
     pub tcp: Option<SocketAddr>,
+    /// Serve TLS on the TCP listener with this certificate chain and key.
+    #[cfg(feature = "tls")]
+    pub tls_cert: Option<PathBuf>,
+    #[cfg(feature = "tls")]
+    pub tls_key: Option<PathBuf>,
+    /// Require clients to present a certificate signed by this CA.
+    #[cfg(feature = "tls")]
+    pub tls_client_ca: Option<PathBuf>,
     pub uds: Option<PathBuf>,
     pub orbit: bool,
+    /// Restart the PHP application on source changes (development only).
+    #[cfg(feature = "watch")]
+    pub watch: bool,
+    /// Source files/directories; empty selects existing Laravel source paths.
+    #[cfg(feature = "watch")]
+    pub watch_paths: Vec<PathBuf>,
+    /// Explicit static mounts served before application routes.
+    #[cfg(feature = "files")]
+    pub files: Option<std::sync::Arc<crate::Files>>,
     /// Broadcast application whose service is exposed to the native PHP broadcaster.
     #[cfg(feature = "broadcast")]
     pub broadcast_application: Option<String>,
@@ -33,8 +50,20 @@ impl Default for Options {
             name: None,
             config_dir: "config/runtime".into(),
             tcp: None,
+            #[cfg(feature = "tls")]
+            tls_cert: None,
+            #[cfg(feature = "tls")]
+            tls_key: None,
+            #[cfg(feature = "tls")]
+            tls_client_ca: None,
             uds: None,
             orbit: false,
+            #[cfg(feature = "watch")]
+            watch: false,
+            #[cfg(feature = "watch")]
+            watch_paths: Vec::new(),
+            #[cfg(feature = "files")]
+            files: None,
             #[cfg(feature = "broadcast")]
             broadcast_application: None,
             max_in_flight: default_max_in_flight(),
@@ -53,6 +82,22 @@ impl Options {
     }
 
     pub fn validate(&self) -> crate::Result<()> {
+        #[cfg(feature = "files")]
+        if let Some(files) = &self.files {
+            files.validate()?;
+        }
+        #[cfg(feature = "tls")]
+        {
+            if self.tls_cert.is_some() != self.tls_key.is_some() {
+                return Err("tls_cert and tls_key must be supplied together".into());
+            }
+            if self.tls_client_ca.is_some() && self.tls_cert.is_none() {
+                return Err("tls_client_ca requires tls_cert and tls_key".into());
+            }
+            if self.tls_cert.is_some() && self.tcp.is_none() {
+                return Err("TLS requires a tcp listener".into());
+            }
+        }
         if self.tcp.is_none() && self.uds.is_none() && !self.orbit {
             return Err("select tcp, uds or orbit ingress".into());
         }
@@ -97,10 +142,25 @@ impl Options {
             config_dir: Option<PathBuf>,
             #[arg(long)]
             tcp: Option<SocketAddr>,
+            #[cfg(feature = "tls")]
+            #[arg(long)]
+            tls_cert: Option<PathBuf>,
+            #[cfg(feature = "tls")]
+            #[arg(long)]
+            tls_key: Option<PathBuf>,
+            #[cfg(feature = "tls")]
+            #[arg(long)]
+            tls_client_ca: Option<PathBuf>,
             #[arg(long)]
             uds: Option<PathBuf>,
             #[arg(long)]
             orbit: bool,
+            #[cfg(feature = "watch")]
+            #[arg(long)]
+            watch: bool,
+            #[cfg(feature = "watch")]
+            #[arg(long = "watch-path")]
+            watch_paths: Vec<PathBuf>,
             #[arg(long)]
             max_in_flight: Option<usize>,
         }
@@ -119,6 +179,20 @@ impl Options {
             options.uds = args.uds;
         }
         options.orbit |= args.orbit;
+        #[cfg(feature = "watch")]
+        {
+            options.watch |= args.watch;
+            if !args.watch_paths.is_empty() {
+                options.watch_paths = args.watch_paths;
+            }
+        }
+        // Validate after merging, so a CLI override can use the file's key/CA.
+        #[cfg(feature = "tls")]
+        {
+            options.tls_cert = args.tls_cert.or(options.tls_cert);
+            options.tls_key = args.tls_key.or(options.tls_key);
+            options.tls_client_ca = args.tls_client_ca.or(options.tls_client_ca);
+        }
         if let Some(limit) = args.max_in_flight {
             options.max_in_flight = limit;
         }

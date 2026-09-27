@@ -5,7 +5,7 @@ use std::sync::Arc;
 
 use async_trait::async_trait;
 use claviron::http::boxed_body;
-use claviron::http::ext::ConnCtx;
+use claviron::http::ext::{ConnCtx, TlsInfo};
 use claviron::http::session::{ConnectionScope, SessionOwner};
 use claviron::runtime::registry::{self, ProviderOrder};
 use claviron::runtime::{AppState, Provider, RunContext, Runnable};
@@ -22,13 +22,21 @@ use crate::application::{self, Application};
 pub(crate) struct SocketIngress {
     tcp: Option<SocketAddr>,
     uds: Option<PathBuf>,
+    #[cfg(feature = "tls")]
+    tls: Option<crate::Tls>,
 }
 impl SocketIngress {
     pub fn new(
         tcp: Option<SocketAddr>,
         uds: Option<PathBuf>,
+        #[cfg(feature = "tls")] tls: Option<crate::Tls>,
     ) -> Self {
-        Self { tcp, uds }
+        Self {
+            tcp,
+            uds,
+            #[cfg(feature = "tls")]
+            tls,
+        }
     }
 }
 impl Provider<AppState> for SocketIngress {
@@ -77,6 +85,14 @@ impl Runnable<AppState> for SocketIngress {
         context: RunContext,
     ) -> registry::Result<()> {
         let app = application::resolve(&state)?;
+        // Fail before opening either socket if the TLS configuration is invalid.
+        #[cfg(feature = "tls")]
+        let acceptor = self
+            .tls
+            .as_ref()
+            .map(crate::Tls::acceptor)
+            .transpose()
+            .map_err(failure)?;
         let tcp = match self.tcp {
             Some(addr) => Some(TcpListener::bind(addr).await.map_err(failure)?),
             None => None,
@@ -114,7 +130,12 @@ impl Runnable<AppState> for SocketIngress {
                         Ok((stream, peer)) => {
                             let local = match stream.local_addr() { Ok(local) => local, Err(e) => { error = Some(e); break; } };
                             let scope = sessions.bind(gate.try_enter().map_err(failure)?);
-                            connections.spawn(serve(stream, Some((peer, local)), app.clone(), stop.clone(), Some(scope)));
+                            #[cfg(feature = "tls")]
+                            if let Some(acceptor) = &acceptor {
+                                connections.spawn(serve_tls(stream, (peer, local), app.clone(), stop.clone(), scope, acceptor.clone()));
+                                continue;
+                            }
+                            connections.spawn(serve(stream, Some((peer, local)), app.clone(), stop.clone(), Some(scope), None));
                         },
                         Err(e) => { error = Some(e); break; }
                     }
@@ -123,7 +144,7 @@ impl Runnable<AppState> for SocketIngress {
                     match accepted {
                         Ok((stream, _)) => {
                             let scope = sessions.bind(gate.try_enter().map_err(failure)?);
-                            connections.spawn(serve(stream, None, app.clone(), stop.clone(), Some(scope)));
+                            connections.spawn(serve(stream, None, app.clone(), stop.clone(), Some(scope), None));
                         },
                         Err(e) => { error = Some(e); break; }
                     }
@@ -158,36 +179,24 @@ async fn serve<T>(
     app: Arc<Application>,
     stop: CancellationToken,
     scope: Option<ConnectionScope>,
+    tls: Option<TlsInfo>,
 ) -> std::io::Result<()>
 where
     T: tokio::io::AsyncRead + tokio::io::AsyncWrite + Unpin + Send + 'static,
 {
     let session_spawner = scope.as_ref().map(ConnectionScope::sessions);
+    let context = connection_context(peers, tls);
     let service = service_fn(move |request: http::Request<Incoming>| {
         let app = app.clone();
         let session_spawner = session_spawner.clone();
+        let context = context.clone();
         async move {
             let mut request = request.map(boxed_body);
-            request.extensions_mut().insert(http::uri::Scheme::HTTP);
+            request.extensions_mut().insert(context.scheme());
             if let Some(sessions) = session_spawner {
                 request.extensions_mut().insert(sessions);
             }
-            {
-                // Unix sockets have no IP peer; unspecified addresses carry
-                // that absence without trusting forwarded client headers.
-                let unspecified = SocketAddr::from(([0, 0, 0, 0], 0));
-                let (remote, local) = peers.unwrap_or((unspecified, unspecified));
-                request.extensions_mut().insert(Arc::new(ConnCtx {
-                    listener: "lumenize".parse().expect("valid listener identity"),
-                    proto: None,
-                    remote,
-                    local_ip: local.ip(),
-                    local_port: local.port(),
-                    real_ip: None,
-                    country_code: None,
-                    tls: None,
-                }));
-            }
+            request.extensions_mut().insert(context);
             Ok::<_, Infallible>(app.handle(request).await)
         }
     });
@@ -201,6 +210,48 @@ where
             connection.await.map_err(|e| std::io::Error::other(e.to_string()))
         }
     }
+}
+
+fn connection_context(
+    peers: Option<(SocketAddr, SocketAddr)>,
+    tls: Option<TlsInfo>,
+) -> Arc<ConnCtx> {
+    // Unix sockets have no IP peer; never infer one from forwarded headers.
+    let unspecified = SocketAddr::from(([0, 0, 0, 0], 0));
+    let (remote, local) = peers.unwrap_or((unspecified, unspecified));
+    Arc::new(ConnCtx {
+        listener: "lumenize".parse().expect("valid listener identity"),
+        proto: None,
+        remote,
+        local_ip: local.ip(),
+        local_port: local.port(),
+        real_ip: None,
+        country_code: None,
+        tls,
+    })
+}
+
+#[cfg(feature = "tls")]
+async fn serve_tls<T>(
+    stream: T,
+    peers: (SocketAddr, SocketAddr),
+    app: Arc<Application>,
+    stop: CancellationToken,
+    scope: ConnectionScope,
+    acceptor: tokio_rustls::TlsAcceptor,
+) -> std::io::Result<()>
+where
+    T: tokio::io::AsyncRead + tokio::io::AsyncWrite + Unpin + Send + 'static,
+{
+    // Handshakes belong to the listener's JoinSet too. Cancellation wakes an
+    // idle peer without a guessed handshake timeout or detached task.
+    let stream = tokio::select! {
+        biased;
+        () = stop.cancelled() => return Ok(()),
+        result = acceptor.accept(stream) => result?,
+    };
+    let tls = crate::tls::connection_info(stream.get_ref().1);
+    serve(stream, Some(peers), app, stop, Some(scope), Some(tls)).await
 }
 fn failure(e: impl std::fmt::Display) -> registry::Error {
     registry::Error::msg(e.to_string())

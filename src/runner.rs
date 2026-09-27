@@ -52,19 +52,39 @@ impl Runner {
                     claviron::laravel::register(state, application.clone())?;
                 }
                 configure(state)?;
-                state.registry_ref().insert(Arc::new(Application::new(
+                #[cfg(feature = "watch")]
+                if options.watch {
+                    state
+                        .registry_ref()
+                        .insert(Arc::new(crate::watch::SourceWatcher::new(
+                            self.application.clone(),
+                            options.watch_paths.clone(),
+                        )?))?;
+                }
+                let application = Application::new(
                     self.application,
                     options.policy(),
                     options
                         .max_concurrent_requests
                         .and_then(|limit| limit.value()),
-                )))?;
+                );
+                #[cfg(feature = "files")]
+                let application = application.with_files(options.files.clone());
+                state.registry_ref().insert(Arc::new(application))?;
                 if options.tcp.is_some() || options.uds.is_some() {
                     state
                         .registry_ref()
                         .insert(Arc::new(crate::socket::SocketIngress::new(
                             options.tcp,
                             options.uds.clone(),
+                            #[cfg(feature = "tls")]
+                            options.tls_cert.as_ref().zip(options.tls_key.as_ref()).map(
+                                |(certificate, key)| crate::Tls {
+                                    certificate: certificate.clone(),
+                                    key: key.clone(),
+                                    client_ca: options.tls_client_ca.clone(),
+                                },
+                            ),
                         )))?;
                 }
                 if options.orbit {

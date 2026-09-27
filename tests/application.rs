@@ -53,7 +53,7 @@ async fn response_head_releases_capacity_before_body_finishes() {
         serde_yaml::from_str("requests:\n  queue_timeout: 30s\n").unwrap();
     let app = Application::new("web".into(), options.policy(), Some(1));
     let streaming = tower::service_fn(|_: crate::routing::AppRequest| async {
-        Ok::<_, std::convert::Infallible>(Response::new(claviron::axum::body::Body::new(Stalled)))
+        Ok::<_, std::convert::Infallible>(Response::new(crate::routing::body(Stalled)))
     });
     assert!(
         app.router

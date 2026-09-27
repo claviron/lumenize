@@ -26,6 +26,65 @@ async fn cancellation_ends_an_idle_connection_before_protocol_detection() {
     ));
     // Hyper reports cancellation while still detecting the protocol as an
     // error. Completion is the contract: it must not wait for client bytes.
-    let error = serve(server, None, app, stop, None).await.unwrap_err();
+    let error = serve(server, None, app, stop, None, None)
+        .await
+        .unwrap_err();
     assert_eq!(error.to_string(), "Cancelled");
+}
+
+#[cfg(feature = "tls")]
+#[tokio::test]
+async fn cancellation_ends_a_pending_tls_handshake() {
+    let fixture = crate::tls::tests::Fixture::new();
+    let acceptor = fixture.tls.acceptor().unwrap();
+    let (server, _silent_client) = tokio::io::duplex(1);
+    let stop = CancellationToken::new();
+    let owner = SessionOwner::new("test".parse().unwrap());
+    let gate = claviron::runtime::Gate::new(None, std::time::Duration::ZERO);
+    let scope = owner.bind(gate.try_enter().unwrap());
+    let app = Arc::new(Application::new(
+        "web".into(),
+        claviron::http::policy::HttpPolicy::unlimited(),
+        None,
+    ));
+    let address = SocketAddr::from(([127, 0, 0, 1], 0));
+    let connection = serve_tls(
+        server,
+        (address, address),
+        app,
+        stop.clone(),
+        scope,
+        acceptor,
+    );
+    tokio::pin!(connection);
+    std::future::poll_fn(|cx| {
+        use std::future::Future;
+        assert!(connection.as_mut().poll(cx).is_pending());
+        std::task::Poll::Ready(())
+    })
+    .await;
+    stop.cancel();
+    connection.await.unwrap();
+    owner.close().join().await;
+}
+
+#[cfg(feature = "tls")]
+#[test]
+fn physical_tls_sets_https_without_forwarded_headers() {
+    use claviron::http::ext::ClientAuthStatus;
+    let context = connection_context(
+        None,
+        Some(TlsInfo {
+            protocol_version: None,
+            cipher_suite: None,
+            client_auth: ClientAuthStatus::Verified,
+            client_cert: None,
+        }),
+    );
+    assert_eq!(context.scheme(), http::uri::Scheme::HTTPS);
+    assert_eq!(context.tls().unwrap().ssl_client_verify(), "SUCCESS");
+    assert_eq!(
+        connection_context(None, None).scheme(),
+        http::uri::Scheme::HTTP
+    );
 }

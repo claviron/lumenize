@@ -8,6 +8,27 @@ A Laravel-focused PHP application server powered by Claviron.
 **Development API. Publishing is disabled. The published `0.0.0` crate is a
 name-reservation placeholder, not this implementation.**
 
+## Features
+
+| Feature | Role |
+| --- | --- |
+| `axum` (default) | `register_router` and the shared Axum re-export |
+| `cli` | Parse the application's command line |
+| `tls` | HTTPS and optional mTLS on the TCP listener |
+| `files` | Explicit static mounts; selects the Axum adapter |
+| `broadcast` | Native Laravel broadcasting and socket endpoints; selects Axum |
+| `watch` | Native source notifications and PHP application restarts for development |
+| `metrics` | Claviron runtime metrics |
+| `legacy-linux` | Compatibility with Linux kernels older than 5.3 |
+
+`default-features = false` retains embedded PHP, TCP/UDS/Orbit ingress and
+`register_router_with` for a raw Tower service. Neither Axum nor a file watcher
+is selected by that base. `AppBody` follows the chosen adapter; raw callers can
+construct it with `AppBody::new(body)` or `AppBody::empty()`. These features do
+not select Claviron's edge, virtual hosts or another language runtime. TLS and
+watch also work without Axum. CLI belongs to the application's binary and is
+never enabled implicitly by another feature.
+
 ## Application-owned entry
 
 Your application owns its binary, Laravel code and runtime configuration.
@@ -70,10 +91,95 @@ The optional `cli` Cargo feature exposes `Options::from_args()`: `--config`,
 CLI flags override or enable entries in the selected file; use a separate
 configuration file to disable an ingress. No listener is enabled implicitly.
 
+## Development source watching
+
+Enable `watch` and `cli` in the application's Lumenize dependency, then start the
+same application binary with `--watch`. For example:
+
+```sh
+cargo run --features lumenize/watch,lumenize/cli -- --config lumenize.dev.yaml --watch
+```
+
+A development composition can select its own runtime configuration directory:
+
+```yaml
+name: web
+config_dir: config/development
+tcp: 127.0.0.1:8200
+watch: true
+watch_paths: [app, routes, application.php]
+```
+
+`--watch-path` is repeatable and replaces `watch_paths` from YAML. Without an
+explicit list, existing `app`, `bootstrap`, `config`, `php`, `resources`, `routes`
+and `application.php` paths are watched. PHP source changes, including Blade PHP
+templates and atomic editor saves, request a restart of this named PHP
+application through Claviron's application manager. Existing work drains under
+the PHP runtime's policy; listeners, Orbit ingress and Broadcast remain alive.
+The pool may temporarily return 503 while it drains and starts again.
+
+Use a **development PHP INI with OPcache disabled** (`opcache.enable=0` and
+`opcache.enable_cli=0`), selected through `engine.ini_path` / `engine.ini_scan_dir`
+in the development `php.yaml`. Worker replacement alone does not invalidate
+cached bytecode. Watch does not change INI settings or clear Laravel's cached
+configuration/routes; keep those caches disabled/cleared during development.
+Rust changes require rebuilding. Runtime YAML, environment and INI changes need
+process restart because the resolved runtime plan is immutable.
+
+The watcher uses native filesystem events, without a polling or debounce timer.
+It coalesces pending changes and waits for its native callback to close on
+shutdown. Shared/network filesystems may not forward edits made on another
+machine into the local kernel's notifications; use a local checkout or restart
+explicitly in that case. No polling fallback is enabled.
+
+## TLS on the application listener
+
+Enable the optional `tls` Cargo feature to serve HTTPS on the TCP listener:
+
+```yaml
+tcp: 127.0.0.1:8443
+tls_cert: config/tls/server.pem
+tls_key: config/tls/server.key
+# Optional: require a client certificate signed by this authority (mTLS).
+tls_client_ca: config/tls/edge-ca.pem
+```
+
+With `cli`, the same fields are `--tls-cert`, `--tls-key` and `--tls-client-ca`.
+They override the selected YAML file. Certificate and key must be supplied
+together, and TLS requires `tcp`. Invalid material fails before listeners open.
+One certificate serves this application; there is no vhost or SNI certificate
+selection. HTTP/2 and HTTP/1.1 are advertised through ALPN. UDS and Orbit are
+unaffected. Laravel receives the physical HTTPS scheme and TLS connection facts.
+Certificates are loaded at startup; restart the process after renewal.
+A pending TLS handshake is cancelled by listener shutdown; no handshake deadline
+is invented.
+
+## Static assets
+
+The optional `files` Cargo feature exposes Claviron's static file service without
+an edge dependency. Declare explicit mounts in `lumenize.yaml`:
+
+```yaml
+files:
+  root: public
+  statics:
+    - path: /build
+      dir: build
+```
+
+GET/HEAD assets are served before application routes on every ingress, including
+Orbit. Other methods and unmatched mount prefixes reach the application. A missing
+file inside a mount returns 404; set `none_found: true` on that mount to fall
+through instead. PHP sources, dotfiles and traversal paths retain the shared file
+service's protections. Mount `rules` use Claviron's existing caching policy;
+`config_dir/files.yaml` owns the shared cache configuration and reload behavior.
+No general filesystem fallback or directory index is enabled.
+
 ## Boundaries
 
-- A separate edge owns TLS, virtual hosts, static files and proxy trust policy.
-  Socket ingress uses the physical connection's peer and plain HTTP scheme;
+- A separate edge owns virtual hosts and proxy trust policy. Static assets
+  may be served by that edge or the application’s optional `files` feature.
+  Socket ingress uses the physical connection's peer and HTTP/HTTPS scheme;
   it does not implicitly trust forwarded headers.
 - `requests` and `responses` reuse Claviron's HTTP policy types. Request size
   and idle-read limits and response size and idle-write-source limits are
@@ -89,7 +195,7 @@ configuration file to disable an ingress. No listener is enabled implicitly.
   isolation. The current shared PHP service buffers the incoming request body
   before Laravel receives it, even when the transport reads it incrementally.
   CONNECT and unsupported native WebSocket upgrades are rejected with 501.
-  Orbit upgrades require the optional Pusher service and a configured app key.
+  Orbit upgrades require the optional Broadcast service and a configured app key.
 - Orbit uses Claviron's existing exchange/stream protocol and runtime identity
   `php`. All participants must agree on compiled transport geometry.
 - Current process composition is standalone. Supervised workers, script-mode
