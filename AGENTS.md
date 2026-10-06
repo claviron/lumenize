@@ -13,8 +13,9 @@ context; public builds and documentation must not require that file.
 
 - Lumenize is a Laravel-focused PHP runner built on Claviron. The downstream
   application owns its binary, entry point, configuration, and business logic.
-- Use Claviron's public facade. Do not depend on its internal crate paths or
-  duplicate its PHP engine, supervision, or shared-state lifecycle.
+- Consume the runner shell directly through `claviron-runner`. Use Claviron's
+  public facade for server lifecycle, PHP and Laravel integration; do not
+  duplicate its engine, supervision or shared-state lifecycle.
 - Keep common Laravel integration usable without Lumenize. Runner-specific
   composition and starter tooling belong here.
 - Register definitions without resolving services during registration.

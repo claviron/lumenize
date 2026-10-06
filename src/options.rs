@@ -3,7 +3,7 @@
 //! keys that are Lumenize's own. One flat `lumenize.yaml` holds both.
 use std::path::{Path, PathBuf};
 
-use claviron::runner::RunnerOptions;
+use claviron_runner::RunnerOptions;
 use serde::{Deserialize, Serialize};
 
 /// Deployment options; PHP engine and application policy stay in php.yaml.
@@ -11,7 +11,9 @@ use serde::{Deserialize, Serialize};
 #[cfg_attr(feature = "cli", derive(clap::Parser))]
 #[cfg_attr(
     feature = "cli",
-    command(about = "Serve a Laravel application through Claviron embedded PHP")
+    command(
+        about = "Serve a Laravel application through Claviron embedded PHP"
+    )
 )]
 pub struct Options {
     /// The name, doors, trust, request policy, static mounts, watching and
@@ -53,7 +55,7 @@ pub(crate) struct Php {
 }
 
 /// A launch as Lumenize writes and carries it.
-pub(crate) type Launch = claviron::runner::launch::Launch<Php>;
+pub(crate) type Launch = claviron_runner::launch::Launch<Php>;
 
 impl From<Launch> for Options {
     fn from(launch: Launch) -> Self {
@@ -84,14 +86,18 @@ impl From<Options> for Launch {
 
 impl Options {
     pub fn from_file(path: impl AsRef<Path>) -> crate::Result<Self> {
-        let launch: Launch = serde_yaml::from_str(&std::fs::read_to_string(path)?)?;
+        let launch: Launch =
+            serde_yaml::from_str(&std::fs::read_to_string(path)?)?;
         Ok(launch.into())
     }
 
     /// What cannot be served as written, said before anything starts.
     pub fn validate(&self) -> crate::Result<()> {
         self.runner.validate()?;
-        if self.runner.tcp.is_none() && self.runner.uds.is_none() && !self.runner.orbit {
+        if self.runner.tcp.is_none()
+            && self.runner.uds.is_none()
+            && !self.runner.orbit
+        {
             return Err("select tcp, uds or orbit ingress".into());
         }
         Ok(())
@@ -104,7 +110,9 @@ impl Options {
     pub fn from_args() -> crate::Result<Self> {
         use clap::Parser;
         #[derive(Parser)]
-        #[command(about = "Serve a Laravel application through Claviron embedded PHP")]
+        #[command(
+            about = "Serve a Laravel application through Claviron embedded PHP"
+        )]
         struct Args {
             #[arg(long, default_value = "lumenize.yaml")]
             config: PathBuf,

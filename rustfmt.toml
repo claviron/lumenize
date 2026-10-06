@@ -1,34 +1,42 @@
-# -----------------------------------------------------------------------------
-# Forge Rust at night. Ship the Future at dawn.
-# -----------------------------------------------------------------------------
-# Formatter profile: nightly
-# Run with: rustup run nightly cargo fmt
-# -----------------------------------------------------------------------------
+# Formatting rules. The same file is kept in every project.
+#
+# Everything here is applied by the stable rustfmt, so `cargo fmt` and
+# `rust-format.sh -p <crate>` produce the same result and no nightly toolchain
+# is involved.
 
-# Core language profile
-edition = "2024"                  # Target edition
-max_width = 100                    # Hard line width budget
-hard_tabs = false                  # Spaces over tabs
-tab_spaces = 4                     # Visual tab width
+# Language and style edition
+edition = "2024"                    # Parse as Rust 2024 when rustfmt runs outside Cargo
+style_edition = "2024"              # 2024 style rules, stated rather than inherited from `edition`
 
-# Heuristics
-use_small_heuristics = "Default"  # rustfmt defaults
+# Whitespace
+newline_style = "Unix"              # LF everywhere; the tree is shared with Linux and FreeBSD hosts
+hard_tabs = false                   # Indent with spaces
+tab_spaces = 4
 
-# Functions and clauses
-fn_params_layout = "Vertical"      # Vertical params when wrapping is needed
+# Width
+max_width = 80
+use_small_heuristics = "Max"        # Short constructs may use the whole line before they break
 
-# Impl and punctuation behavior
-reorder_impl_items = true          # Normalize item order inside impl blocks
-trailing_comma = "Vertical"        # Trailing commas on multiline forms
-force_explicit_abi = true          # Explicit ABI in extern functions
-wrap_comments = false              # Keep author-controlled comment wrapping
+# Functions
+fn_params_layout = "Vertical"       # One parameter per line as soon as there is more than one
+force_explicit_abi = true           # Always name the ABI: `extern "C"`, never a bare `extern`
 
-# Struct/enum formatting
-struct_lit_width = 80              # Struct literal wrapping width
-struct_field_align_threshold = 0   # Disable alignment padding for fields
-enum_discrim_align_threshold = 0   # Disable alignment padding for discriminants
+# Shorthands
+use_field_init_shorthand = true     # `Point { x, y }`, not `Point { x: x, y: y }`
+use_try_shorthand = true            # `expr?`, not `try!(expr)`
+
+# Literals
+hex_literal_case = "Lower"          # `0xff`, not `0xFF`
 
 # Imports
-imports_granularity = "Module"    # Group imports at module scope
-group_imports = "StdExternalCrate" # std -> external -> crate ordering
-reorder_imports = true             # Sort imports alphabetically
+reorder_imports = true              # Sort imports within each group
+
+# Not set: rustfmt applies these only on a nightly toolchain, and none is
+# installed. Until 2026-10-04 this file carried them, so older code has no
+# trailing commas and one `use` per module; rustfmt now adds the commas and
+# leaves import grouping as it finds it.
+#
+#   trailing_comma, imports_granularity, group_imports, reorder_impl_items,
+#   wrap_comments, format_code_in_doc_comments, normalize_doc_attributes,
+#   format_macro_matchers, condense_wildcard_suffixes,
+#   struct_field_align_threshold, enum_discrim_align_threshold

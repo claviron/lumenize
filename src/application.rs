@@ -10,9 +10,9 @@ use std::task::{Context, Poll};
 use async_trait::async_trait;
 use claviron::ephp::{PhpApplicationAdapter, PhpApplicationService};
 use claviron::http::RouteResponse;
-use claviron::runner::AppRequest;
 use claviron::runtime::registry::{self, ProviderOrder};
 use claviron::runtime::{AppState, Provider};
+use claviron_runner::AppRequest;
 use http_body_util::BodyExt;
 use tower::Service;
 
@@ -28,7 +28,8 @@ impl PhpService {
 
 impl Service<AppRequest> for PhpService {
     type Error = Infallible;
-    type Future = Pin<Box<dyn Future<Output = Result<RouteResponse, Infallible>> + Send>>;
+    type Future =
+        Pin<Box<dyn Future<Output = Result<RouteResponse, Infallible>> + Send>>;
     type Response = RouteResponse;
 
     fn poll_ready(
@@ -45,9 +46,7 @@ impl Service<AppRequest> for PhpService {
         let php = Arc::clone(&self.0);
         Box::pin(async move {
             let adapter = php.get().expect("PHP boots before ingress starts");
-            adapter
-                .handle(request.map(|body| body.boxed_unsync()))
-                .await
+            adapter.handle(request.map(|body| body.boxed_unsync())).await
         })
     }
 }
@@ -85,7 +84,9 @@ impl Provider<AppState> for PhpOwner {
         let runtime = state
             .registry_ref()
             .resolve::<claviron::ephp::PhpEmbedRuntime>()
-            .ok_or_else(|| registry::Error::msg("PHP runtime was not registered"))?;
+            .ok_or_else(|| {
+                registry::Error::msg("PHP runtime was not registered")
+            })?;
         if !runtime.has_application(&self.name) {
             return Err(registry::Error::msg(format!(
                 "PHP application {:?} is not registered",
@@ -107,7 +108,9 @@ impl Provider<AppState> for PhpOwner {
         let service = state
             .registry_ref()
             .resolve::<PhpApplicationService>()
-            .ok_or_else(|| registry::Error::msg("PHP application service was not registered"))?;
+            .ok_or_else(|| {
+            registry::Error::msg("PHP application service was not registered")
+        })?;
         let _ = self
             .php
             .0

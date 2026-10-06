@@ -11,7 +11,9 @@ that composition in the future.
 
 ## Boundaries
 
-- Consume Claviron through its public root facade, not internal crate paths.
+- Consume the runner shell directly through `claviron-runner`; select its
+  own features. The Claviron facade still supplies server lifecycle, PHP and
+  Laravel integration. Neither runner nor facade selects an edge implicitly.
 - Compose the existing PHP runner and embedded PHP extension mechanisms;
   do not introduce a second PHP engine or supervisor.
 - Shared Laravel integration stays in Claviron and remains usable without
@@ -26,6 +28,17 @@ that composition in the future.
   contracts. Do not invent a separate process or shared-state lifecycle.
 
 ## Current state
+
+The fluent builder accepts `with_config_dir`, typed
+`with_services::<(ServiceA, ServiceB)>()`, and `with_bootstrap` callbacks.
+Services implement Continuo's `Register<AppState>`, re-exported through Claviron
+runtime and Lumenize; Lumenize does not invent
+a lifecycle trait or construct them with an implicit `Default` requirement.
+Registration callbacks run in builder order, with the legacy `run(configure)`
+callback last, before boot. `with_interceptor` builds its selected router after
+all application registrations, so registered Routable contributions are visible
+regardless of builder call order. A subsequent interceptor replaces the prior
+selection; it does not register a duplicate application service.
 
 The initial `Runner` API composes Claviron's standalone `Server`, one named
 persistent PHP application and TCP/Unix-socket and/or Orbit ingress. `Options`
@@ -140,7 +153,7 @@ new ring kinds or copy the transport into the runner to create isolation.
 
 ## The runner shell
 
-Everything a runner does alike is Claviron's runner shell (`claviron::runner`,
+Everything a runner does alike is Claviron's runner shell (`claviron_runner`,
 `crates/runner` in Claviron): the TCP/Unix socket ingress (HTTP/1 and HTTP/2,
 TLS, upgrades, trusted forwarding headers), the Orbit ingress, the guards and
 admission, the routing order, static mounts, broadcasting, source watching,

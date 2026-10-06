@@ -24,7 +24,7 @@ name-reservation placeholder, not this implementation.**
 | `legacy-linux` | Compatibility with Linux kernels older than 5.3 |
 
 The doors, guards, routing, static mounts, broadcasting, watching and workers
-are Claviron's runner shell (`claviron::runner`), shared with the Python
+are Claviron's runner shell (`claviron_runner`), shared with the Python
 runner; `workers: N` in `lumenize.yaml` serves the application from N worker
 processes. `default-features = false` retains embedded PHP, TCP/UDS/Orbit ingress and
 `register_router_with` for a raw Tower service. Neither Axum nor a file watcher

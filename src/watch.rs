@@ -1,26 +1,21 @@
 //! Development's reload for PHP. The watching is the runner shell's
-//! (`claviron::runner::watch`); what is Lumenize's is what counts as source
+//! (`claviron_runner::watch`); what is Lumenize's is what counts as source
 //! and what a change does: the PHP application restarts in this process,
 //! draining its own generation, once it has started.
 use std::path::PathBuf;
 use std::sync::Arc;
 
 use claviron::app::management::ApplicationStarted;
-use claviron::app::{ApplicationId, ApplicationManager, ApplicationName, ApplicationRuntime};
-use claviron::runner::watch::{Reaction, Source, SourceWatcher};
+use claviron::app::{
+    ApplicationId, ApplicationManager, ApplicationName, ApplicationRuntime,
+};
+use claviron_runner::watch::{Reaction, Source, SourceWatcher};
 
 /// Laravel's source; with no paths written, its source directories and the
 /// application entry, those that exist.
 const LARAVEL: Source = Source {
     extensions: &["php"],
-    skip: &[
-        "vendor",
-        "storage",
-        "node_modules",
-        "public",
-        ".git",
-        "target",
-    ],
+    skip: &["vendor", "storage", "node_modules", "public", ".git", "target"],
     defaults: &[
         "app",
         "bootstrap",
@@ -47,12 +42,17 @@ pub(crate) fn watcher(
             let manager = state
                 .registry_ref()
                 .resolve::<ApplicationManager>()
-                .ok_or_else(|| "the application manager is not registered".to_owned())?;
+                .ok_or_else(|| {
+                    "the application manager is not registered".to_owned()
+                })?;
             // Subscribed before asking, so a start between the two is seen.
             let mut started = state.events().subscribe::<ApplicationStarted>();
             while manager.status(&application).is_err() {
                 match started.recv().await {
-                    Ok(_) | Err(tokio::sync::broadcast::error::RecvError::Lagged(_)) => {}
+                    Ok(_)
+                    | Err(tokio::sync::broadcast::error::RecvError::Lagged(
+                        _,
+                    )) => {}
                     Err(error) => return Err(error.to_string()),
                 }
             }

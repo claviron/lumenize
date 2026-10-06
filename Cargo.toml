@@ -1,7 +1,7 @@
 [package]
 autotests = false
 name = "lumenize"
-version = "0.1.0-alpha.1"
+version = "0.1.0-alpha.2"
 publish = false
 edition = "2024"
 authors = ["Claviron <code@claviron.org>"]
@@ -17,17 +17,17 @@ categories = ["web-programming::http-server"]
 # remain usable with default-features = false.
 [features]
 default = ["axum"]
-axum = ["claviron/axum"]
+axum = ["claviron/axum", "claviron-runner/axum"]
 # The application's binary owns argv; opt in where main reads Options::from_args.
-cli = ["dep:clap", "claviron/runner-cli"]
+cli = ["dep:clap", "claviron-runner/cli"]
 # One application's TCP certificate, optionally with client authentication.
-tls = ["claviron/runner-tls"]
+tls = ["claviron-runner/tls"]
 # Static mounts from Claviron's runner shell; no edge/vhost runtime.
-files = ["axum", "claviron/files"]
+files = ["axum", "claviron/files", "claviron-runner/files"]
 # Native Laravel broadcasting and its HTTP/WebSocket adapters in this process.
-broadcast = ["axum", "claviron/laravel"]
+broadcast = ["axum", "claviron/laravel", "claviron-runner/broadcast"]
 # PHP source watching for development; production carries no watcher by default.
-watch = ["claviron/runner-watch"]
+watch = ["claviron-runner/watch"]
 # Claviron's log pipeline for this application's fleet: the channels
 # `logging.yaml` beside the configuration declares, written by the master's one
 # writer. PHP reaches them through `claviron_log()` and the `claviron` log
@@ -39,7 +39,8 @@ metrics = ["claviron/metrics"]
 legacy-linux = ["claviron/legacy-linux"]
 
 [dependencies]
-claviron = { path = "../claviron", default-features = false, features = ["server", "http", "php_embed", "runner", "supervisor"] }
+claviron = { path = "../claviron", default-features = false, features = ["php_embed","server"] }
+claviron-runner = { path = "../claviron/crates/runner", default-features = false, features = ["supervisor"] }
 async-trait = "0.1"
 clap = { version = "4", features = ["derive"], optional = true }
 http-body-util = "0.1"
