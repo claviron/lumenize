@@ -1,13 +1,12 @@
-use std::path::PathBuf;
 use std::sync::Arc;
 
 use claviron::Server;
 use claviron::runtime::{AppState, Register, registry};
 use claviron_runner::{Owner, launch};
 
+use crate::Options;
 use crate::application::{PhpOwner, PhpService};
 use crate::options::Launch;
-use crate::{FleetName, Options};
 
 /// What the Orbit lane says answers the name: a Python application given the
 /// same name is refused at its join rather than splitting this one's requests.
@@ -15,7 +14,7 @@ const PHP_RUNTIME: &str = "php";
 
 type Registration = Box<dyn FnOnce(&AppState) -> registry::Result<()> + Send>;
 
-/// Compose one named php.yaml application on Claviron's runner shell: its
+/// Compose one application from the launch file on Claviron's runner shell: its
 /// sockets, its Orbit lane, its routing, its workers. Claviron owns the PHP
 /// engine, services, signals, draining and finalization.
 pub struct Runner {
@@ -45,12 +44,21 @@ impl Runner {
         self
     }
 
-    /// Where runtime configuration is read; relative paths use the process cwd.
-    pub fn with_config_dir(
+    /// Read one composition file. Paths inside it remain relative to cwd.
+    pub fn with_config_path(
         mut self,
-        directory: impl Into<PathBuf>,
+        path: impl AsRef<std::path::Path>,
+    ) -> crate::Result<Self> {
+        self.options = Options::from_file(path)?;
+        Ok(self)
+    }
+
+    /// Select Orbit's namespace independently of this application's name.
+    pub fn with_fleet_name(
+        mut self,
+        name: impl Into<crate::FleetName>,
     ) -> Self {
-        self.options.config_dir = directory.into();
+        self.options.runner.fleet_name = Some(name.into().to_string());
         self
     }
 
@@ -88,27 +96,7 @@ impl Runner {
         self
     }
 
-    pub fn with_orbit_announce(
-        mut self,
-        fleet_name: FleetName,
-    ) -> Self {
-        self.options.edge_fleet = Some(fleet_name);
-        self
-    }
-
-    /// Select the configured broadcast application for Laravel's native
-    /// publisher. Its credentials and endpoints stay in broadcast.yaml.
-    #[cfg(feature = "broadcast")]
-    pub fn with_broadcasting(
-        mut self,
-        application: impl Into<String>,
-    ) -> Self {
-        self.options.broadcast_application = Some(application.into());
-        self
-    }
-
-    pub async fn run<F>(mut self) -> crate::Result<()>
-where {
+    pub async fn run(self) -> crate::Result<()> {
         let registrations = self.registrations;
         #[cfg(feature = "axum")]
         let interceptor = self.interceptor;
@@ -130,29 +118,31 @@ where {
                 "watch restarts the PHP application in its process: run it standalone".into(),
             );
         }
-        let config_dir = self.options.config_dir.clone();
+        let system_log = self.options.system_log()?;
         let mut launch = Launch::from(self.options);
         let prepared = launch.prepare(name)?;
         let application = self.application;
+        let definitions = launch.clone();
+        let definition_name = application.clone();
         Server::new()
             .name(prepared.name.clone())
-            .fleet_name(prepared.name)
+            .fleet_name(prepared.fleet_name)
             .workers(prepared.workers)
             .launch(prepared.envelope)
-            .config_dir(&config_dir)
+            .config_dir(".")
+            .system_log(system_log)
+            .with_definitions(move |state| {
+                let definitions = definitions.inherited(state)?;
+                claviron_runner::supervisor::register_policy(
+                    state,
+                    definitions.runner.supervisor.clone().unwrap_or_default(),
+                )?;
+                definitions.own.register(state, &definition_name)
+            })
             .register(move |state| {
                 // A worker serves what its master resolved.
                 let launch = launch.inherited(state)?;
                 let runner = &launch.runner;
-                claviron_runner::supervisor::register_policy(
-                    state,
-                    runner.supervisor.clone().unwrap_or_default(),
-                )?;
-                claviron::ephp::register(state)?;
-                #[cfg(feature = "broadcast")]
-                if let Some(broadcaster) = &launch.own.broadcast_application {
-                    claviron::laravel::register(state, broadcaster.clone())?;
-                }
 
                 // The owner, then what stands in front of it, then the
                 // application's own registrations, which compose in front.

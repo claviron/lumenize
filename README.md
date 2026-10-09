@@ -18,7 +18,7 @@ name-reservation placeholder, not this implementation.**
 | `files` | Explicit static mounts; selects the Axum adapter |
 | `broadcast` | Native Laravel broadcasting and socket endpoints; selects Axum |
 | `watch` | Native source notifications and PHP application restarts for development |
-| `log` | Log channels from `logging.yaml` for Laravel's `claviron` log driver |
+| `log` | `logging.channels` for Laravel's `claviron` log driver |
 | `log-otlp` | `log` plus the OTLP channel adapter |
 | `metrics` | Claviron runtime metrics |
 | `legacy-linux` | Compatibility with Linux kernels older than 5.3 |
@@ -57,12 +57,13 @@ fn configure(state: &AppState) -> registry::Result<()> {
 async fn main() -> lumenize::Result<()> {
     Runner::new("web")
         .with_options(Options::from_file("lumenize.yaml")?)
-        .run(configure)
+        .with_bootstrap(configure)
+        .run()
         .await
 }
 ```
 
-The runner loads PHP through Claviron's existing `php.yaml` loader. The callback
+The runner reads one launch document and reuses Claviron's existing PHP schema. The callback
 registers the application's own Rust providers, services and routes. Providers
 resolve dependencies during boot. `register_router(state, routes::router)` calls
 the `FnOnce(AppState) -> Router` builder and installs the Rust
@@ -81,41 +82,79 @@ admission and body guards.
 ```yaml
 # lumenize.yaml, loaded from the application's working directory
 name: web
-config_dir: config/runtime
+fleet_name: web
 tcp: 127.0.0.1:8200
 orbit: true
+php:
+  application:
+    script_path: application.php
+    env_file: .env
+logging:
+  path: storage/logs/system.log
 ```
 
-`config/runtime/php.yaml` declares the `applications.web` entry, its persistent
-PHP script, environment, pool and execution policy. Paths in both files are
+`php.application` declares its persistent PHP script, environment, pool and
+execution policy, without repeating the application name. `Runner::new("web")`
+already supplies that name, so `name` above is optional. `php.engine`,
+`php.lifecycle` and optional `php.sapi` use the existing embed schema. A single
+persistent application does not also create a script pool unless requested.
+Paths in the file are
 relative to the application's working directory. Laravel routes and business
 logic remain PHP-owned. Shared Laravel integration remains in Claviron.
 
-The optional `cli` Cargo feature exposes `Options::from_args()`: `--config`,
-`--config-dir`, `--name`, `--tcp`, `--uds`, `--orbit` and `--max-in-flight`.
+PHP configuration documents returned as arrays are supported automatically:
+declare `Format::Custom("php")` on a Rust `Configurable` provider. The runner
+registers the native Laravel config evaluator before preparation; the Composer
+package `claviron/laravel` supplies its helper bootstrap. This evaluates trusted
+PHP into the provider's Rust type, without booting Laravel's HTTP application.
+`config_parser: {max_depth: 64}` controls the returned array nesting limit.
+
+Cache composition also lives in this file; there is no separate `cache.yaml`:
+
+```yaml
+cache:
+  default: disk
+  stores:
+    disk:
+      driver: file
+      path: storage/cache/runtime
+```
+
+Omitting `cache` (or using `cache: {}`) declares no stores. Cache and other launch
+policy changes require a process restart.
+
+The optional `cli` Cargo feature exposes `Options::from_args()`: `--config-path`
+(alias `--config`), `--name`, `--fleet-name`, `--tcp`, `--uds`, `--orbit` and
+`--max-in-flight`.
 CLI flags override or enable entries in the selected file; use a separate
 configuration file to disable an ingress. No listener is enabled implicitly.
+The instance name and process-family fleet name are independent. Omitted
+`fleet_name` uses the instance name only if it fits the fleet primitive;
+longer names need an explicit fleet name. Workers inherit the selected launch.
 
 ## Log channels
 
-Enable `log` to give the application's fleet the channels a `logging.yaml` in
-`config_dir` declares:
+System logging needs no channel: `logging: {path: storage/logs/system.log}`
+selects one file. Enable `log` for named application channels in the same launch:
 
 ```yaml
-channels:
-  laravel:
-    adapter: file
-    path: storage/logs/claviron-laravel.log
-    format: json
+logging:
+  system_log:
+    path: storage/logs/system.log
+  channels:
+    laravel:
+      adapter: file
+      path: storage/logs/system.log
+      format: line
 ```
 
 Each worker copies a record into its lane of a shared-memory ring and returns;
 the master's one writer formats and writes it. Laravel reaches a channel through
 the `claviron` log driver that `claviron/laravel` registers (a Monolog handler
 from `claviron/monolog`). Select it for the runtime only, by setting
-`LOG_CHANNEL: claviron` in the application's `env` in `php.yaml`; `php artisan`
-from a shell keeps the channel `.env` names. Without the file, nothing is
-registered.
+`LOG_CHANNEL: claviron` in `php.application.env`; `php artisan`
+from a shell keeps the channel `.env` names. Omitted channels create no
+application sinks. This runner creates no Edge access records.
 
 ## Development source watching
 
@@ -123,14 +162,13 @@ Enable `watch` and `cli` in the application's Lumenize dependency, then start th
 same application binary with `--watch`. For example:
 
 ```sh
-cargo run --features lumenize/watch,lumenize/cli -- --config lumenize.dev.yaml --watch
+cargo run --features lumenize/watch,lumenize/cli -- --config-path lumenize.dev.yaml --watch
 ```
 
-A development composition can select its own runtime configuration directory:
+A development launch can select source watching in the same file:
 
 ```yaml
 name: web
-config_dir: config/development
 tcp: 127.0.0.1:8200
 watch: true
 watch_paths: [app, routes, application.php]
@@ -146,7 +184,7 @@ The pool may temporarily return 503 while it drains and starts again.
 
 Use a **development PHP INI with OPcache disabled** (`opcache.enable=0` and
 `opcache.enable_cli=0`), selected through `engine.ini_path` / `engine.ini_scan_dir`
-in the development `php.yaml`. Worker replacement alone does not invalidate
+under `php.engine` in the development launch. Worker replacement alone does not invalidate
 cached bytecode. Watch does not change INI settings or clear Laravel's cached
 configuration/routes; keep those caches disabled/cleared during development.
 Rust changes require rebuilding. Runtime YAML, environment and INI changes need
@@ -183,7 +221,20 @@ is invented.
 ## Static assets
 
 The optional `files` Cargo feature exposes Claviron's static file service without
-an edge dependency. Declare explicit mounts in `lumenize.yaml`:
+an edge dependency. For directories under `public`, use the shorthand in the same
+`lumenize.yaml`:
+
+```yaml
+try_files: false                 # default; no general filesystem probe
+assets: [build, images]          # /build → public/build, /images → public/images
+```
+
+Each entry becomes Claviron's existing `StaticConfig`, not a separate asset
+service or configuration file. `--asset` is repeatable and replaces the written
+list. `--try-files` enables general public-file probing; missing files still
+reach the application. No directory index is enabled.
+
+For custom roots, prefixes or caching policies, declare explicit mounts instead:
 
 ```yaml
 files:
@@ -198,8 +249,11 @@ Orbit. Other methods and unmatched mount prefixes reach the application. A missi
 file inside a mount returns 404; set `none_found: true` on that mount to fall
 through instead. PHP sources, dotfiles and traversal paths retain the shared file
 service's protections. Mount `rules` use Claviron's existing caching policy;
-`config_dir/files.yaml` owns the shared cache configuration and reload behavior.
-No general filesystem fallback or directory index is enabled.
+Claviron's shared file cache configuration and reload behavior remain separate
+from these mounts; this runner does not invent a file cache policy.
+`try_files` defaults to false. When enabled, general probing happens after the
+explicit mounts. If both forms are used, assets are relative to `files.root`
+and an explicit mount at the same prefix retains its policy.
 
 ## Boundaries
 
@@ -224,18 +278,27 @@ No general filesystem fallback or directory index is enabled.
   Orbit upgrades require the optional Broadcast service and a configured app key.
 - Orbit uses Claviron's existing exchange/stream protocol and runtime identity
   `php`. All participants must agree on compiled transport geometry.
-- Current process composition is standalone. Supervised workers, script-mode
-  routing, an application-owned multihost edge and starter generation remain
-  future work. These are independent of the existing PHP pool capacity.
+- Standalone and supervised master/worker composition use the shared lifecycle.
+  Script-mode routing, an application-owned multihost edge and starter generation
+  remain future work, independent of the existing PHP pool capacity.
 
 See [ARCHITECTURE.md](ARCHITECTURE.md) for ownership and lifecycle contracts.
 
 ## Native Laravel broadcasting
 
 The optional `broadcast` Cargo feature composes Claviron's existing Broadcast service
-and Laravel PHP extension in the application process. Declare applications and
-credentials in `config_dir/broadcast.yaml`, and select the PHP broadcaster's
-application with `broadcast_application: your-application` in `lumenize.yaml`.
+and Laravel PHP extension in the application process. Declare credentials in the
+same `lumenize.yaml`:
+
+```yaml
+broadcasting:
+  key: ${PUSHER_APP_KEY}
+  secret: ${PUSHER_APP_SECRET}
+  client_events: true
+```
+
+The application name comes from `Runner::new(...)`. The wire `id` defaults to
+that name and can be set explicitly for external Pusher REST clients.
 The secret must be present in the Rust process environment before bootstrap;
 under systemd, supply it with `EnvironmentFile`.
 

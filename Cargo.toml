@@ -25,11 +25,11 @@ tls = ["claviron-runner/tls"]
 # Static mounts from Claviron's runner shell; no edge/vhost runtime.
 files = ["axum", "claviron/files", "claviron-runner/files"]
 # Native Laravel broadcasting and its HTTP/WebSocket adapters in this process.
-broadcast = ["axum", "claviron/laravel", "claviron-runner/broadcast"]
+broadcast = ["axum", "claviron-runner/broadcast"]
 # PHP source watching for development; production carries no watcher by default.
 watch = ["claviron-runner/watch"]
 # Claviron's log pipeline for this application's fleet: the channels
-# `logging.yaml` beside the configuration declares, written by the master's one
+# `logging.channels` in the launch file declares, written by the master's one
 # writer. PHP reaches them through `claviron_log()` and the `claviron` log
 # driver. `log-otlp` adds the OTLP adapter.
 log = ["claviron/log-pipeline"]
@@ -39,7 +39,7 @@ metrics = ["claviron/metrics"]
 legacy-linux = ["claviron/legacy-linux"]
 
 [dependencies]
-claviron = { path = "../claviron", default-features = false, features = ["php_embed","server"] }
+claviron = { path = "../claviron", default-features = false, features = ["laravel", "supervisor"] }
 claviron-runner = { path = "../claviron/crates/runner", default-features = false, features = ["supervisor"] }
 async-trait = "0.1"
 clap = { version = "4", features = ["derive"], optional = true }

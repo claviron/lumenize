@@ -29,13 +29,18 @@ that composition in the future.
 
 ## Current state
 
-The fluent builder accepts `with_config_dir`, typed
+The fluent builder accepts `with_config_path`, `with_fleet_name`, typed
 `with_services::<(ServiceA, ServiceB)>()`, and `with_bootstrap` callbacks.
+The Axum surface exposes Claviron HTTP's `Routable`. Its
+`routes(self: Arc<Self>, &AppState)` receives the registered shared instance,
+so application handlers may capture it without a second registry lookup or
+an Axum state/extension just to access their provider. Registration still
+passes an Arc and the result remains `Option<Router<AppState>>`.
 Services implement Continuo's `Register<AppState>`, re-exported through Claviron
 runtime and Lumenize; Lumenize does not invent
 a lifecycle trait or construct them with an implicit `Default` requirement.
-Registration callbacks run in builder order, with the legacy `run(configure)`
-callback last, before boot. `with_interceptor` builds its selected router after
+Registration callbacks run in builder order before boot; `run()` starts the
+composition. `with_interceptor` builds its selected router after
 all application registrations, so registered Routable contributions are visible
 regardless of builder call order. A subsequent interceptor replaces the prior
 selection; it does not register a duplicate application service.
@@ -45,7 +50,7 @@ persistent PHP application and TCP/Unix-socket and/or Orbit ingress. `Options`
 loads `lumenize.yaml`; the optional `cli` feature adds application-owned argv
 parsing. No edge preset or additional language engine is selected.
 
-The runner loads `php.yaml`; the application's registration callback owns Rust
+The runner loads one launch document; the application's registration callback owns Rust
 providers and services and calls `lumenize::register_router(state, routes::router)`
 with a `FnOnce(AppState) -> Router` builder. The registered service uses PHP as
 the fallback for undeclared paths and methods. `register_router_with` instead
@@ -118,7 +123,8 @@ These serving shapes are independent of standalone/master/worker process roles,
 supervisor policy, Laravel profile selection, and Cargo debug/release profiles.
 Selecting an ingress does not create a second process lifecycle. The development,
 socket-upstream and Orbit compositions are implemented. The embedded edge
-composition and supervised process mode remain planned.
+composition remains planned. Supervised master/worker mode uses the shared
+supervisor and is selected by `workers`.
 
 ## Shared foundations
 
@@ -146,6 +152,54 @@ booting Laravel to discover Rust boot dependencies would reverse that order.
 PHP YAML parsing and environment resolution stay in Claviron; Lumenize does not
 maintain a second PHP schema.
 
+`Options.config_path` selects one file (default `lumenize.yaml`); there is no
+public `config_dir` option. The flat common runner keys sit beside `php`,
+`broadcasting`, `logging`, `cache`, and `config_parser`. They include
+`assets: [build, images]` and opt-in `try_files` (default false).
+With the `files` feature, these use the shell's existing static mounts and
+public-file probe; they create no separate asset configuration or service.
+`php.application` supplies one application whose
+name is `Runner::new(...)`, without a repeated application catalog key.
+The existing embed schema validates that section. `broadcasting` is the existing
+single application's catalog entry, with its ID defaulting to the application
+name; its key and secret remain explicit. `logging.path` is a single system-log
+shorthand, or `logging.system_log` and `logging.channels` use the existing
+logging policies. There is no Edge access-log registration here.
+
+The runner always installs `LaravelConfigParser` on the shared ConfigReader
+after declaring the process PHP INI and before any configuration preparation.
+Owners can use `Format::Custom("php")` for returned PHP arrays, including
+Laravel helper calls, with no application-local parser registration. The package
+runner at `vendor/claviron/laravel/runners/config.php` uses the consumer's Composer
+autoload; evaluation does not boot its HTTP loop or Laravel service providers.
+`config_parser.max_depth` bounds returned array nesting (default 64).
+
+`cache` reuses Claviron's `CacheConfig` store/driver schema. Omission or an empty
+section creates no stores, without consulting `cache.yaml`. The cache registers
+before default composition and builds after all custom driver registrations,
+before cache-dependent services boot. It is immutable launch intent like PHP;
+changes require process restart.
+
+Explicit definitions are installed through `Server::with_definitions` before
+built-in defaults; those defaults retain the supplied PHP runtime, broadcast
+catalog and log channels without opening separate files. Ordinary application
+registrations still run after built-in registration. Runtime sections are
+immutable boot intent and require restart after changes. Source watching remains
+the separate PHP-source restart API.
+
+The launch's supervisor policy is also installed in this definitions phase,
+before Claviron constructs its supervisor consumers. An omitted `supervisor`
+section uses the supervisor's existing defaults. Installing that source later
+would disable file preparation without initializing the consumers' supplied
+snapshots; supervised launches must never enter that state.
+
+The CLI's `--config-path` selects the file and its runner flags override written
+values. `Runner::new(...)` supplies the default instance name; `fleet_name` and
+`--fleet-name` independently select the process-family namespace. A worker
+inherits the launch and file identity rather than reopening a default file.
+Unresolved environment expressions travel unchanged and use each process's
+prepared boot environment; resolved secrets are not copied into the launch.
+
 Process identity, Laravel profile identity and Orbit fleet identity have
 different owners. Fleet validation and transport protocol changes must land in
 the common runtime before a downstream launch depends on them. Do not assign
@@ -162,12 +216,12 @@ where they are described; the same code serves the Python runner.
 
 What Lumenize adds is the owner and what is Laravel's:
 
-- **The owner** is the named php.yaml application, bound when PHP boots
+- **The owner** is the launch's PHP application, bound when PHP boots
   (`PhpOwner`); it answers what the routes, files and broadcasting in front
   of it did not claim. Its Orbit lane says `php`.
 - **Options** are one flat `lumenize.yaml`: the runner's shared keys beside
-  Lumenize's own `config_dir` and `broadcast_application`.
-- **Broadcasting** from PHP: `broadcast_application` registers Claviron's
+  Lumenize's own `php`, `broadcasting` and `logging` sections.
+- **Broadcasting** from PHP: `broadcasting` registers Claviron's
   native Laravel publisher; the Pusher endpoints themselves are the shell's.
 - **Watching** takes Laravel's source directories and restarts the PHP
   application in its process once it has started. It refuses workers: with

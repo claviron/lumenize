@@ -1,4 +1,4 @@
-//! The owner: the named php.yaml application, as the service the runner
+//! The owner: the launch's PHP application, as the service the runner
 //! shell puts behind everything else. Its adapter is bound when PHP has
 //! booted, before any ingress runs.
 use std::convert::Infallible;
@@ -52,7 +52,7 @@ impl Service<AppRequest> for PhpService {
 }
 
 /// Binds the PHP application's adapter into the owner once PHP has booted,
-/// and refuses a launch that names an application php.yaml does not have.
+/// and refuses a launch whose PHP application was not registered.
 pub(crate) struct PhpOwner {
     name: String,
     php: PhpService,
