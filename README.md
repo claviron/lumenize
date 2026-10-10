@@ -308,8 +308,10 @@ over its existing SHM stream with native wakeups; no TCP or Unix socket listener
 is needed in the application. The edge owns the public WebSocket handshake and
 wire framing. Both ingress adapters run the same Claviron Broadcast session under
 their own task ownership. Laravel's `claviron` broadcast driver calls
-the native extension and publishes to the same Broadcast service, with no HTTP
-client or separate Pusher process.
+the native extension with its selected connection's key. Broadcast resolves that
+key against its existing application catalog, with no HTTP client or separate
+Pusher process. Laravel's default connection selection is unchanged. Deploy the
+matching PHP package and rebuilt host together when updating this native boundary.
 
 ## Non-Affiliation
 

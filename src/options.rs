@@ -252,7 +252,10 @@ impl Configuration {
             )?;
             claviron::broadcast::register_with_config(state, config)?;
             if self.broadcasting.is_some() {
-                claviron::laravel::broadcast::register(state, application)?;
+                use claviron::laravel::broadcast::LaravelBroadcastProvider;
+                use claviron::runtime::Register;
+
+                LaravelBroadcastProvider::register(state)?;
             }
         }
         Ok(())

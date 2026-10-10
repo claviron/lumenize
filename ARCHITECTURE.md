@@ -166,6 +166,13 @@ name; its key and secret remain explicit. `logging.path` is a single system-log
 shorthand, or `logging.system_log` and `logging.channels` use the existing
 logging policies. There is no Edge access-log registration here.
 
+Native PHP broadcasting is installed through Claviron's
+`LaravelBroadcastProvider::register(state)`, without a fixed publisher identity.
+PHP sends its selected Laravel connection's key; Broadcast resolves the existing
+catalog application. Laravel default/explicit connection selection stays PHP-owned.
+The matching PHP package and host must be deployed together when the native
+function signature changes.
+
 The runner always installs `LaravelConfigParser` on the shared ConfigReader
 after declaring the process PHP INI and before any configuration preparation.
 Owners can use `Format::Custom("php")` for returned PHP arrays, including
