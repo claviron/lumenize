@@ -147,7 +147,7 @@ impl Runner {
                 // The owner, then what stands in front of it, then the
                 // application's own registrations, which compose in front.
                 let php = PhpService::new();
-                state.registry_ref().insert(Arc::new(PhpOwner::new(
+                state.registry_ref().register(Arc::new(PhpOwner::new(
                     application.clone(),
                     php.clone(),
                 )))?;
@@ -173,7 +173,7 @@ impl Runner {
                         application.clone(),
                     )
                     .map_err(registry::Error::msg)?;
-                    state.registry_ref().insert(Arc::new(watcher))?;
+                    state.registry_ref().register(Arc::new(watcher))?;
                 }
                 // Bounded by the lane's own capacity unless the launch says
                 // otherwise: work beyond it waits in the lane, where the edge

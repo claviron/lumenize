@@ -10,8 +10,8 @@ use std::task::{Context, Poll};
 use async_trait::async_trait;
 use claviron::ephp::{PhpApplicationAdapter, PhpApplicationService};
 use claviron::http::RouteResponse;
-use claviron::runtime::registry::{self, ProviderOrder};
-use claviron::runtime::{AppState, Provider};
+use claviron::runtime::registry::{self, Bootable};
+use claviron::runtime::{AppState, Component};
 use claviron_runner::AppRequest;
 use http_body_util::BodyExt;
 use tower::Service;
@@ -67,14 +67,13 @@ impl PhpOwner {
     }
 }
 
-#[async_trait]
-impl Provider<AppState> for PhpOwner {
+impl Component<AppState> for PhpOwner {
+    /// The PHP application served behind everything else. A master with
+    /// workers loads no PHP, so it is required only where the owner binds.
+    type Deps = (Option<Arc<PhpApplicationService>>,);
+
     fn name(&self) -> &'static str {
         "LumenizePhpOwner"
-    }
-
-    fn order(&self) -> ProviderOrder {
-        ProviderOrder::new().after::<PhpApplicationService>()
     }
 
     fn validate(
@@ -96,8 +95,16 @@ impl Provider<AppState> for PhpOwner {
         Ok(())
     }
 
+    fn as_bootable(&self) -> Option<&dyn Bootable<AppState, Self::Deps>> {
+        Some(self)
+    }
+}
+
+#[async_trait]
+impl Bootable<AppState, (Option<Arc<PhpApplicationService>>,)> for PhpOwner {
     async fn boot(
         &self,
+        (service,): (Option<Arc<PhpApplicationService>>,),
         state: &AppState,
     ) -> registry::Result<()> {
         // A master with workers serves nothing and loads no PHP; its workers
@@ -105,10 +112,7 @@ impl Provider<AppState> for PhpOwner {
         if state.is_master() {
             return Ok(());
         }
-        let service = state
-            .registry_ref()
-            .resolve::<PhpApplicationService>()
-            .ok_or_else(|| {
+        let service = service.ok_or_else(|| {
             registry::Error::msg("PHP application service was not registered")
         })?;
         let _ = self
