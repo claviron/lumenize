@@ -119,12 +119,21 @@ impl Runner {
             );
         }
         let system_log = self.options.system_log()?;
+        let production = self.options.runner.production;
+        let environment = self.options.runner.environment.clone();
         let mut launch = Launch::from(self.options);
         let prepared = launch.prepare(name)?;
         let application = self.application;
         let definitions = launch.clone();
         let definition_name = application.clone();
-        Server::new()
+        // Production only by `--production`; otherwise `--environment`, and
+        // without either, `local`.
+        let server = match (production, environment) {
+            (true, _) => Server::new().production(),
+            (false, Some(environment)) => Server::new().environment(environment),
+            (false, None) => Server::new(),
+        };
+        server
             .name(prepared.name.clone())
             .fleet_name(prepared.fleet_name)
             .workers(prepared.workers)
