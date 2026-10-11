@@ -174,10 +174,6 @@ impl Runner {
                 claviron_runner::ensure_application(state)?;
                 launch::register_trust(state, runner)?;
 
-                if runner.orbit {
-                    claviron_runner::management::register_link_application_management(state)?;
-                }
-
                 #[cfg(feature = "watch")]
                 if runner.watch {
                     let watcher = crate::watch::watcher(

@@ -236,3 +236,9 @@ What Lumenize adds is the owner and what is Laravel's:
 - **Workers** come from the shell with `workers:`; each worker boots its own
   PHP and takes its own lane, and receives the master's resolved launch, since
   it starts with no command line.
+
+Orbit launches obtain Link connection observations and hosted-application
+management from the shell's `launch::register_doors`; Lumenize registers no
+duplicate command bridge. The shared PHP engine's `ApplicationController`
+remains authoritative for start/stop/restart and lifecycle snapshots. Stopping
+the PHP application does not stop its runner or disconnect its Link lane.
