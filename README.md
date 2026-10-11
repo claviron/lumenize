@@ -21,6 +21,8 @@ name-reservation placeholder, not this implementation.**
 | `log` | `logging.channels` for Laravel's `claviron` log driver |
 | `log-otlp` | `log` plus the OTLP channel adapter |
 | `metrics` | Claviron runtime metrics |
+| `db` | Native process-local DB composition |
+| `postgres`, `mysql`, `sqlite` | Select the corresponding native DB backend; each enables `db` |
 | `legacy-linux` | Compatibility with Linux kernels older than 5.3 |
 
 The doors, guards, routing, static mounts, broadcasting, watching and workers
@@ -122,6 +124,34 @@ cache:
 
 Omitting `cache` (or using `cache: {}`) declares no stores. Cache and other launch
 policy changes require a process restart.
+
+## Native database pools
+
+Enable `postgres`, `mysql` or `sqlite` for runner-owned Rust pools. The
+`database` section in the same launch file is Claviron's existing `DbFileConfig`,
+not a Laravel-specific schema or a separate `db.yaml`:
+
+```yaml
+database:
+  postgres:
+    default:
+      url: ${DATABASE_URL}
+      pool:
+        pool_size: 8
+        idle_size: 0
+        acquire_timeout: 10s
+        idle_timeout: 5m
+        max_lifetime: 30m
+```
+
+Those example capacities and durations are deployment choices. Each process
+resolves the section against its boot environment and constructs its own pools
+before PHP boots; they are not the edge's pools and SQL is not sent over Orbit.
+For PostgreSQL/MySQL, Laravel's existing `'claviron' => 'default'` connection
+setting selects the named native pool. SQLite supplies native Rust pools; it
+does not introduce a PHP SQLite bridge. A written backend requires its matching
+feature. Omission creates no native connections and preserves ordinary PDO
+profiles. Runtime pool options change on process restart.
 
 The optional `cli` Cargo feature exposes `Options::from_args()`: `--config-path`
 (alias `--config`), `--name`, `--fleet-name`, `--tcp`, `--uds`, `--orbit` and

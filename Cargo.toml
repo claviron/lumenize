@@ -35,6 +35,11 @@ watch = ["claviron-runner/watch"]
 log = ["claviron/log-pipeline"]
 log-otlp = ["log", "claviron/log-otlp"]
 metrics = ["claviron/metrics"]
+# Runner-owned native database pools, using Claviron's existing DB schema.
+db = ["claviron/db"]
+postgres = ["db", "claviron/postgres"]
+mysql = ["db", "claviron/mysql"]
+sqlite = ["db", "claviron/sqlite"]
 # Explicit compatibility with Linux kernels older than 5.3 (no pidfd).
 legacy-linux = ["claviron/legacy-linux"]
 

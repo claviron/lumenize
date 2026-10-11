@@ -68,3 +68,53 @@ fn logging_rejects_misspelled_sections_and_non_mappings() {
         assert!(options.system_log().is_err());
     }
 }
+
+#[test]
+fn database_launch_survives_workers_without_resolving_environment() {
+    let mut launch: Launch = serde_yaml::from_str(
+        "orbit: true\nfleet_name: example\nworkers: 2\ndatabase:\n  postgres:\n    example:\n      url: '${DATABASE_URL}'\n      pool: {pool_size: 2, idle_size: 0, acquire_timeout: 1s, idle_timeout: 1s, max_lifetime: 1s}\n",
+    )
+    .unwrap();
+    let sent = launch.prepare("example-app".into()).unwrap();
+    let received: Launch = serde_json::from_slice(&sent.envelope).unwrap();
+    assert_eq!(received.own.database, launch.own.database);
+    assert_eq!(
+        received.own.database.unwrap()["postgres"]["example"]["url"],
+        "${DATABASE_URL}",
+    );
+}
+
+#[cfg(feature = "postgres")]
+#[test]
+fn database_section_uses_the_existing_native_schema() {
+    let configuration: Configuration = serde_yaml::from_str(
+        "database:\n  postgres:\n    example:\n      url: 'postgresql://example@example.test/example?options=-csearch_path%3Dexample'\n      pool: {pool_size: 2, idle_size: 0, acquire_timeout: 1s, idle_timeout: 1s, max_lifetime: 1s}\n",
+    )
+    .unwrap();
+    configuration.validate_database_features().unwrap();
+    let config: claviron::db::DbFileConfig =
+        serde_yaml::from_value(configuration.database.unwrap()).unwrap();
+    let entry = config.postgres.get("example").unwrap();
+    assert_eq!(entry.pool.pool_size, 2);
+    assert_eq!(
+        entry.url.as_ref().unwrap().query(),
+        Some("options=-csearch_path%3Dexample")
+    );
+}
+
+#[test]
+fn database_requires_a_mapping_and_selected_backends() {
+    let configuration: Configuration =
+        serde_yaml::from_str("database: true").unwrap();
+    assert!(configuration.validate_database_features().is_err());
+    for (backend, enabled) in [
+        ("postgres", cfg!(feature = "postgres")),
+        ("mysql", cfg!(feature = "mysql")),
+        ("sqlite", cfg!(feature = "sqlite")),
+    ] {
+        let configuration: Configuration =
+            serde_yaml::from_str(&format!("database: {{{backend}: {{}}}}"))
+                .unwrap();
+        assert_eq!(configuration.validate_database_features().is_ok(), enabled);
+    }
+}

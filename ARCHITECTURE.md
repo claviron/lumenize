@@ -154,7 +154,7 @@ maintain a second PHP schema.
 
 `Options.config_path` selects one file (default `lumenize.yaml`); there is no
 public `config_dir` option. The flat common runner keys sit beside `php`,
-`broadcasting`, `logging`, `cache`, and `config_parser`. They include
+`broadcasting`, `logging`, `cache`, `database`, and `config_parser`. They include
 `assets: [build, images]` and opt-in `try_files` (default false).
 With the `files` feature, these use the shell's existing static mounts and
 public-file probe; they create no separate asset configuration or service.
@@ -186,6 +186,19 @@ section creates no stores, without consulting `cache.yaml`. The cache registers
 before default composition and builds after all custom driver registrations,
 before cache-dependent services boot. It is immutable launch intent like PHP;
 changes require process restart.
+
+`database` reuses Claviron's existing `DbFileConfig` and is selected through
+`postgres`, `mysql` or `sqlite` (each enables `db`). Unresolved YAML remains in
+the inherited launch just like other runtime sections; each process expands
+it against its own boot environment and passes the typed value to
+`claviron::db::register_with_config` in the definitions phase. This suppresses
+the server's separate `db.yaml` registration. `DbService` builds process-local
+pools in ordered boot before the PHP runtime resolves its DB dependency.
+Omission creates no native connections. These options are immutable launch
+intent, not a config watcher/reload owner or an edge pool. Native PostgreSQL
+and MySQL PHP bridges use those runner pools; SQLite is a native Rust pool
+capability, not an additional PHP database adapter. A configured but unselected
+backend is refused rather than silently ignored.
 
 Explicit definitions are installed through `Server::with_definitions` before
 built-in defaults; those defaults retain the supplied PHP runtime, broadcast

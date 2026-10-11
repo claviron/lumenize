@@ -31,6 +31,8 @@ pub struct Configuration {
     pub php: serde_yaml::Value,
     pub config_parser: PhpConfigParserOptions,
     pub cache: Option<serde_yaml::Value>,
+    /// Claviron's `DbFileConfig`, resolved against each process's boot env.
+    pub database: Option<serde_yaml::Value>,
     pub broadcasting: Option<serde_yaml::Value>,
     pub logging: Option<serde_yaml::Value>,
     /// The selected file's identity, carried to replacement workers.
@@ -99,6 +101,7 @@ impl Options {
         if self.configuration.broadcasting.is_some() {
             return Err("broadcasting requires the broadcast feature".into());
         }
+        self.configuration.validate_database_features()?;
         if self.runner.tcp.is_none()
             && self.runner.uds.is_none()
             && !self.runner.orbit
@@ -169,12 +172,52 @@ impl Options {
 }
 
 impl Configuration {
+    fn validate_database_features(&self) -> crate::Result<()> {
+        let Some(database) = &self.database else {
+            return Ok(());
+        };
+        if !cfg!(feature = "db") {
+            return Err("database requires a database feature (postgres, mysql or sqlite)".into());
+        }
+        let mapping =
+            database.as_mapping().ok_or("database must be a mapping")?;
+        for (backend, enabled) in [
+            ("postgres", cfg!(feature = "postgres")),
+            ("mysql", cfg!(feature = "mysql")),
+            ("sqlite", cfg!(feature = "sqlite")),
+        ] {
+            if mapping.contains_key(serde_yaml::Value::from(backend))
+                && !enabled
+            {
+                return Err(format!(
+                    "database.{backend} requires the {backend} feature"
+                )
+                .into());
+            }
+        }
+        Ok(())
+    }
+
     pub(crate) fn register(
         &self,
         state: &claviron::runtime::AppState,
         application: &str,
     ) -> claviron::runtime::registry::Result<()> {
         use claviron::runtime::registry;
+        self.validate_database_features()
+            .map_err(|error| registry::Error::msg(error.to_string()))?;
+        #[cfg(feature = "db")]
+        {
+            // No separate db.yaml, even when the launch declares no native
+            // connections. Application dependencies decide what is required.
+            let database = self
+                .database
+                .as_ref()
+                .map(|value| expand::<claviron::db::DbFileConfig>(state, value))
+                .transpose()?
+                .unwrap_or_default();
+            claviron::db::register_with_config(state, database)?;
+        }
         let yaml = serde_yaml::to_string(&self.php)
             .map_err(|error| registry::Error::msg(error.to_string()))?;
         claviron::ephp::register_application_from_yaml(
