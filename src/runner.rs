@@ -130,7 +130,9 @@ impl Runner {
         // without either, `local`.
         let server = match (production, environment) {
             (true, _) => Server::new().production(),
-            (false, Some(environment)) => Server::new().environment(environment),
+            (false, Some(environment)) => {
+                Server::new().environment(environment)
+            }
             (false, None) => Server::new(),
         };
         server

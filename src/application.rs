@@ -76,6 +76,10 @@ impl Component<AppState> for PhpOwner {
         "LumenizePhpOwner"
     }
 
+    fn as_bootable(&self) -> Option<&dyn Bootable<AppState, Self::Deps>> {
+        Some(self)
+    }
+
     fn validate(
         &self,
         state: &AppState,
@@ -93,10 +97,6 @@ impl Component<AppState> for PhpOwner {
             )));
         }
         Ok(())
-    }
-
-    fn as_bootable(&self) -> Option<&dyn Bootable<AppState, Self::Deps>> {
-        Some(self)
     }
 }
 
