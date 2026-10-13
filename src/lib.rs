@@ -5,6 +5,8 @@
 //! the owner — the launch's PHP application — and what is Laravel's.
 #![forbid(unsafe_code)]
 mod application;
+#[cfg(feature = "bench")]
+pub mod bench;
 mod options;
 mod runner;
 #[cfg(feature = "watch")]

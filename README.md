@@ -13,6 +13,7 @@ name-reservation placeholder, not this implementation.**
 | Feature | Role |
 | --- | --- |
 | `axum` (default) | `register_router` and the shared Axum re-export |
+| `bench` | Opt-in native HTTP baselines through the existing Routable registry |
 | `cli` | Parse the application's command line |
 | `tls` | HTTPS and optional mTLS on the TCP listener |
 | `files` | Explicit static mounts; selects the Axum adapter |
@@ -139,6 +140,22 @@ cache:
 
 Omitting `cache` (or using `cache: {}`) declares no stores. Cache and other launch
 policy changes require a process restart.
+
+## Native HTTP benchmarks
+
+Enable `bench` in the application's Cargo features to register
+`bench::BenchService` automatically. It contributes `/_bench/rust` (GET/POST)
+and `/_bench/stats` (GET) ahead of PHP on TCP, UDS and Orbit ingress. No separate
+listener or benchmark configuration is created. Application interceptors still
+own their declared paths. Without `bench`, this provider and its handlers are
+not compiled. A custom raw Tower service can explicitly compose `bench::routes()`.
+
+The Rust response is JSON with `from: rust`. Optional `min`/`max` query values
+declare delay in milliseconds; omission means no wait. `payload` declares the
+message length, capped at one MiB. POST consumes the request body and reports
+its size in `x-received`. Stats report process-local `in_flight`, `total` and
+`sessions`, not fleet totals. Payload bodies are retained once per requested
+size; keep sizes fixed when comparing memory between load-test rounds.
 
 ## Native database pools
 

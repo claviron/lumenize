@@ -75,6 +75,18 @@ handler's response is authoritative, including 404. Request and response guards
 surround both Rust and PHP dispatch. Provider boot contributions are supported.
 No PHP package migration or starter generator is implemented.
 
+## Native HTTP benchmarks
+
+The opt-in `bench` feature installs `bench::BenchService` using the existing
+host-free `Register`/`Component`/`Routable` contracts after the routing registry
+is declared and before application interception is composed. It owns no listener,
+PHP context, Runnable, lease, configuration source or management loop. The same
+native routes work across TCP, UDS and Orbit, including applications without an
+explicit interceptor. The shared benchmark format is `/_bench/rust` (GET/POST,
+request-declared delay and payload, `x-received`) and `/_bench/stats`
+(process-local activity). Framework-specific benchmark scripts remain
+application-owned; a custom raw service composes the router explicitly.
+
 ## Downstream repository contract
 
 An application can keep Composer and Cargo in one repository. Its PHP source
