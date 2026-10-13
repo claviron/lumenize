@@ -181,7 +181,7 @@ impl Runner {
                     .map_err(|error| registry::Error::msg(error.to_string()))?;
                 launch::register_routing(state, runner, &root)?;
                 #[cfg(feature = "bench")]
-                crate::bench::BenchService::register(state)?;
+                claviron::bench::runner::BenchService::register(state)?;
                 for register in registrations {
                     register(state)?;
                 }

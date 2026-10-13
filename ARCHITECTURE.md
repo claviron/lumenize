@@ -77,7 +77,8 @@ No PHP package migration or starter generator is implemented.
 
 ## Native HTTP benchmarks
 
-The opt-in `bench` feature installs `bench::BenchService` using the existing
+The opt-in `bench` feature forwards to Claviron's benchmark capability and
+installs `claviron::bench::runner::BenchService` using the existing
 host-free `Register`/`Component`/`Routable` contracts after the routing registry
 is declared and before application interception is composed. It owns no listener,
 PHP context, Runnable, lease, configuration source or management loop. The same
@@ -86,6 +87,9 @@ explicit interceptor. The shared benchmark format is `/_bench/rust` (GET/POST,
 request-declared delay and payload, `x-received`) and `/_bench/stats`
 (process-local activity). Framework-specific benchmark scripts remain
 application-owned; a custom raw service composes the router explicitly.
+All native handlers live in `claviron-bench`, not this crate. `bench::routes`
+and `bench::BenchService` remain compatibility exports. The shared plain,
+JSON and streaming echo workloads are available under `/bench` as well.
 
 ## Downstream repository contract
 

@@ -144,7 +144,9 @@ policy changes require a process restart.
 ## Native HTTP benchmarks
 
 Enable `bench` in the application's Cargo features to register
-`bench::BenchService` automatically. It contributes `/_bench/rust` (GET/POST)
+Claviron's shared `bench::runner::BenchService` automatically. This library
+forwards `claviron/bench` and selects the existing runner adapter; it has no
+copy of the native handlers. It contributes `/_bench/rust` (GET/POST)
 and `/_bench/stats` (GET) ahead of PHP on TCP, UDS and Orbit ingress. No separate
 listener or benchmark configuration is created. Application interceptors still
 own their declared paths. Without `bench`, this provider and its handlers are
@@ -156,6 +158,8 @@ message length, capped at one MiB. POST consumes the request body and reports
 its size in `x-received`. Stats report process-local `in_flight`, `total` and
 `sessions`, not fleet totals. Payload bodies are retained once per requested
 size; keep sizes fixed when comparing memory between load-test rounds.
+The same router supplies `/bench/plain`, `/bench/json` and streaming
+POST `/bench/echo`. `lumenize::bench` retains its compatibility exports.
 
 ## Native database pools
 

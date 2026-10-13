@@ -19,7 +19,7 @@ categories = ["web-programming::http-server"]
 default = ["axum"]
 axum = ["claviron/axum", "claviron-runner/axum"]
 # Native HTTP baselines; excluded from normal application builds.
-bench = ["axum"]
+bench = ["axum", "claviron/bench", "claviron/runner"]
 # The application's binary owns argv; opt in where main reads Options::from_args.
 cli = ["dep:clap", "claviron-runner/cli"]
 # One application's TCP certificate, optionally with client authentication.
