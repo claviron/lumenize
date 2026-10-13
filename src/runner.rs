@@ -148,7 +148,11 @@ impl Runner {
                     state,
                     definitions.runner.supervisor.clone().unwrap_or_default(),
                 )?;
-                definitions.own.register(state, &definition_name)
+                definitions.own.register(
+                    state,
+                    &definition_name,
+                    definitions.runner.framework.clone(),
+                )
             })
             .register(move |state| {
                 // A worker serves what its master resolved.

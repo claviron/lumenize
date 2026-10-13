@@ -29,6 +29,13 @@ that composition in the future.
 
 ## Current state
 
+The hosted Application reports PHP runtime, Lumenize runner and application
+request mode through Claviron's common description. Framework is an optional,
+free-form label declared by `framework` in the launch/CLI or an explicit
+`php.application.framework`; an absent label stays absent. No mode selector
+is added: this runner still uses the persistent PHP application adapter.
+TCP/UDS/Orbit are ingress methods, independent of this introduction.
+
 The fluent builder accepts `with_config_path`, `with_fleet_name`, typed
 `with_services::<(ServiceA, ServiceB)>()`, and `with_bootstrap` callbacks.
 The Axum surface exposes Claviron HTTP's `Routable`. Its

@@ -202,6 +202,7 @@ impl Configuration {
         &self,
         state: &claviron::runtime::AppState,
         application: &str,
+        framework: Option<String>,
     ) -> claviron::runtime::registry::Result<()> {
         use claviron::runtime::registry;
         self.validate_database_features()
@@ -224,6 +225,14 @@ impl Configuration {
             state,
             application,
             &yaml,
+            claviron::app::ApplicationDescription {
+                framework,
+                ..claviron::app::ApplicationDescription::new(
+                    "php",
+                    "application",
+                )
+                .runner("Lumenize")
+            },
         )?;
         // Registration declared the process INI above; no evaluation occurs
         // until configuration preparation, after all native extensions exist.
