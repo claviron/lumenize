@@ -202,7 +202,8 @@ impl Configuration {
         &self,
         state: &claviron::runtime::AppState,
         application: &str,
-        framework: Option<String>,
+        frameworks: Vec<String>,
+        icon: Option<String>,
     ) -> claviron::runtime::registry::Result<()> {
         use claviron::runtime::registry;
         self.validate_database_features()
@@ -226,7 +227,8 @@ impl Configuration {
             application,
             &yaml,
             claviron::app::ApplicationDescription {
-                framework,
+                frameworks,
+                icon,
                 ..claviron::app::ApplicationDescription::new(
                     "php",
                     "application",

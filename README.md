@@ -105,11 +105,18 @@ relative to the application's working directory. Laravel routes and business
 logic remain PHP-owned. Shared Laravel integration remains in Claviron.
 
 Application management reports PHP runtime, Lumenize runner and application
-request mode. `framework` in the launch (or `--framework`) is an optional,
-free-form label such as `Laravel` or `Vanilla`; an absent label stays absent.
-an explicit `php.application.framework` takes precedence. These are descriptive
-facts, not a request-mode selector or an ingress choice. The same introduction
-appears through local management and Orbit Link.
+request mode. `frameworks: [Laravel]` in the launch (or repeatable `--framework`)
+declares free-form informational tags; an explicit
+`php.application.frameworks` takes precedence. Scalar `framework` remains accepted.
+When no list is supplied, Composer detection supplies all recognized frameworks;
+an explicit `[]` disables discovery. Framework labels do
+not select execution or ingress. The same introduction appears through local
+management and Orbit Link.
+
+`icon: laravel` (or `--icon laravel`) selects a symbolic admin-GUI icon.
+Code uses the same `Options.runner.icon` and `Options.runner.frameworks` fields.
+The GUI owns the icon catalog and uses the runtime default for unknown codes.
+Neither icons nor framework tags select PHP mode.
 
 PHP configuration documents returned as arrays are supported automatically:
 declare `Format::Custom("php")` on a Rust `Configurable` provider. The runner

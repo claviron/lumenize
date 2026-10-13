@@ -96,10 +96,18 @@ impl Runner {
         self
     }
 
-    pub async fn run(self) -> crate::Result<()> {
+    pub async fn run(mut self) -> crate::Result<()> {
         let registrations = self.registrations;
         #[cfg(feature = "axum")]
         let interceptor = self.interceptor;
+        if self.options.runner.frameworks.is_none() {
+            let root = std::env::current_dir()?;
+            self.options.runner.frameworks = Some(
+                claviron::ephp::framework::ComposerPackages::read(&root)
+                    .map(|packages| packages.frameworks())
+                    .unwrap_or_default(),
+            );
+        }
         self.options.validate()?;
         let name = self
             .options
@@ -151,7 +159,8 @@ impl Runner {
                 definitions.own.register(
                     state,
                     &definition_name,
-                    definitions.runner.framework.clone(),
+                    definitions.runner.frameworks.clone().unwrap_or_default(),
+                    definitions.runner.icon.clone(),
                 )
             })
             .register(move |state| {
