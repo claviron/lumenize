@@ -128,6 +128,13 @@ impl Runner {
             );
         }
         let system_log = self.options.system_log()?;
+        let config_dir = self
+            .options
+            .config_path
+            .parent()
+            .filter(|path| !path.as_os_str().is_empty())
+            .unwrap_or_else(|| std::path::Path::new("."))
+            .to_path_buf();
         let production = self.options.runner.production;
         let environment = self.options.runner.environment.clone();
         let mut launch = Launch::from(self.options);
@@ -149,7 +156,7 @@ impl Runner {
             .fleet_name(prepared.fleet_name)
             .workers(prepared.workers)
             .launch(prepared.envelope)
-            .config_dir(".")
+            .config_dir(config_dir)
             .system_log(system_log)
             .with_definitions(move |state| {
                 let definitions = definitions.inherited(state)?;

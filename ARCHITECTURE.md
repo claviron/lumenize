@@ -181,7 +181,11 @@ PHP YAML parsing and environment resolution stay in Claviron; Lumenize does not
 maintain a second PHP schema.
 
 `Options.config_path` selects one file (default `lumenize.yaml`); there is no
-public `config_dir` option. The flat common runner keys sit beside `php`,
+public `config_dir` option. The runner sets `AppState::config_dir()` to the
+selected file's parent directory (`.` for a bare filename). Application-owned
+configuration sources use this state value; PHP paths remain relative to the
+application's working directory. Workers inherit the same configuration directory.
+The flat common runner keys sit beside `php`,
 `broadcasting`, `logging`, `cache`, `database`, and `config_parser`. They include
 `assets: [build, images]` and opt-in `try_files` (default false).
 With the `files` feature, these use the shell's existing static mounts and
