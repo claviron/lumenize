@@ -113,7 +113,8 @@ an explicit `[]` disables discovery. Framework labels do
 not select execution or ingress. The same introduction appears through local
 management and Orbit Link.
 
-`icon: laravel` (or `--icon laravel`) selects a symbolic admin-GUI icon.
+The default admin-GUI icon is `laravel`. An explicit `icon` (or `--icon`)
+overrides it, independently of framework discovery and request mode.
 Code uses the same `Options.runner.icon` and `Options.runner.frameworks` fields.
 The GUI owns the icon catalog and uses the runtime default for unknown codes.
 Neither icons nor framework tags select PHP mode.

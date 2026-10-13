@@ -108,6 +108,7 @@ impl Runner {
                     .unwrap_or_default(),
             );
         }
+        self.options.runner.icon.get_or_insert_with(|| "laravel".into());
         self.options.validate()?;
         let name = self
             .options

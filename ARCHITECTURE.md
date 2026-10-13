@@ -35,7 +35,9 @@ free-form informational tags declared by `frameworks` in the launch/CLI or an
 explicit `php.application.frameworks`; an absent list is detected through
 Composer when recognized. An explicit empty list suppresses detection; scalar
 `framework` remains a single-label shorthand. Optional `icon` is a client-owned
-presentation code, not an execution selector. Framework discovery does not
+presentation code, not an execution selector. An omitted icon resolves to
+`laravel` before launch serialization; explicit codes are preserved.
+Framework discovery does not
 select execution mode or ingress. No HTTP request performs detection.
 TCP/UDS/Orbit are ingress methods, independent of this introduction.
 
