@@ -29,7 +29,7 @@ that composition in the future.
 
 ## Current state
 
-The hosted Application reports PHP runtime, Lumenize runner and application
+The hosted Application reports PHP runtime, Lumenize runner and the selected
 request mode through Claviron's common description. Frameworks are optional,
 free-form informational tags declared by `frameworks` in the launch/CLI or an
 explicit `php.application.frameworks`; an absent list is detected through
@@ -37,8 +37,13 @@ Composer when recognized. An explicit empty list suppresses detection; scalar
 `framework` remains a single-label shorthand. Optional `icon` is a client-owned
 presentation code, not an execution selector. An omitted icon resolves to
 `laravel` before launch serialization; explicit codes are preserved.
-Framework discovery does not
-select execution mode or ingress. No HTTP request performs detection.
+
+`request_mode` selects the actual PHP adapter, not just its label.
+Without a selection, Composer's `laravel/octane` selects application mode and
+its absence selects script mode. `with_request_mode` overrides YAML independent
+of builder order. Resolution happens before launch serialization; workers
+inherit the choice. Installed Composer records take precedence over the lockfile
+and root runtime requirements. No HTTP request performs detection.
 TCP/UDS/Orbit are ingress methods, independent of this introduction.
 
 The fluent builder accepts `with_config_path`, `with_fleet_name`, typed
@@ -58,7 +63,7 @@ regardless of builder call order. A subsequent interceptor replaces the prior
 selection; it does not register a duplicate application service.
 
 The initial `Runner` API composes Claviron's standalone `Server`, one named
-persistent PHP application and TCP/Unix-socket and/or Orbit ingress. `Options`
+PHP application in either request mode and TCP/Unix-socket and/or Orbit ingress. `Options`
 loads `lumenize.yaml`; the optional `cli` feature adds application-owned argv
 parsing. No edge preset or additional language engine is selected.
 
@@ -114,9 +119,11 @@ Claviron owns boot, admission, runnable generations, drain and finalize. The
 runner must not introduce an independent lifecycle or supervise PHP itself.
 
 Persistent Laravel execution uses the shared PHP application receive/respond
-loop and Octane operation isolation. The shared runtime supports script execution;
-Lumenize ingress currently targets only one persistent application. Script
-routing is a later composition. Each persistent context has a fixed profile
+loop and Octane operation isolation. Script execution uses the existing SAPI
+request pool and `PhpScriptAdapter`, with `public/index.php` as its default
+front controller. `php.script` reuses the public `PhpConfig` route type;
+the optional `php.sapi` uses the same engine pool schema as the edge.
+Each persistent context has a fixed profile
 environment, established before Laravel loads cached configuration; no request
 changes the process environment to select another application.
 
@@ -192,7 +199,13 @@ With the `files` feature, these use the shell's existing static mounts and
 public-file probe; they create no separate asset configuration or service.
 `php.application` supplies one application whose
 name is `Runner::new(...)`, without a repeated application catalog key.
-The existing embed schema validates that section. `broadcasting` is the existing
+The existing embed schema validates that section. Omitted `script_path` selects
+the project's `application.php` when present, otherwise the package-shipped
+Octane entry. Script mode has no persistent application definition; the embed
+runtime names its sole request pool through `script_application` and reports its
+real lifecycle through the same PHP controller. Its commands use the existing
+ServiceManager for `PhpSapiService`; there is no second pool or lifecycle manager.
+Unselected entry sections are rejected rather than ignored. `broadcasting` is the existing
 single application's catalog entry, with its ID defaulting to the application
 name; its key and secret remain explicit. `logging.path` is a single system-log
 shorthand, or `logging.system_log` and `logging.channels` use the existing

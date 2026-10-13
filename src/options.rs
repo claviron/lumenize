@@ -28,6 +28,8 @@ impl Default for Options {
 #[derive(Clone, Debug, Default, Serialize, Deserialize)]
 #[serde(default, deny_unknown_fields)]
 pub struct Configuration {
+    /// Explicit execution selection; omission detects Octane at launch.
+    pub request_mode: Option<crate::PhpRunner>,
     pub php: serde_yaml::Value,
     pub config_parser: PhpConfigParserOptions,
     pub cache: Option<serde_yaml::Value>,
@@ -94,8 +96,13 @@ impl Options {
         if self.config_path.as_os_str().is_empty() {
             return Err("config_path must name a file".into());
         }
-        if self.configuration.php.is_null() {
-            return Err("the launch must declare php.application".into());
+        if !self.configuration.php.is_null()
+            && !self.configuration.php.is_mapping()
+        {
+            return Err("php must be a mapping".into());
+        }
+        if let Some(mode) = self.configuration.request_mode {
+            validate_mode(mode)?;
         }
         #[cfg(not(feature = "broadcast"))]
         if self.configuration.broadcasting.is_some() {
@@ -172,6 +179,107 @@ impl Options {
 }
 
 impl Configuration {
+    /// Resolve once, before the master serializes its launch to workers.
+    pub(crate) fn prepare_php(
+        &mut self,
+        root: &Path,
+    ) -> crate::Result<Vec<String>> {
+        use crate::PhpRunner;
+        use claviron::ephp::framework::ComposerPackages;
+
+        // Explicit selection does not depend on readable Composer metadata.
+        let packages = if self.request_mode.is_none() {
+            Some(ComposerPackages::read(root)?)
+        } else {
+            ComposerPackages::read(root).ok()
+        };
+        let mode = *self.request_mode.get_or_insert_with(|| {
+            if packages
+                .as_ref()
+                .is_some_and(|packages| packages.contains("laravel/octane"))
+            {
+                PhpRunner::Application
+            } else {
+                PhpRunner::Script
+            }
+        });
+        validate_mode(mode)?;
+        if self.php.is_null() {
+            self.php = serde_yaml::Value::Mapping(Default::default());
+        }
+        let php = self.php.as_mapping_mut().ok_or("php must be a mapping")?;
+        match mode {
+            PhpRunner::Application => {
+                if php.contains_key("script") {
+                    return Err(
+                        "php.script requires request_mode: script".into()
+                    );
+                }
+                let application =
+                    php.entry("application".into()).or_insert_with(|| {
+                        serde_yaml::Value::Mapping(Default::default())
+                    });
+                let application = application
+                    .as_mapping_mut()
+                    .ok_or("php.application must be a mapping")?;
+                if !application.contains_key("script_path") {
+                    let entry = if root.join("application.php").try_exists()? {
+                        PathBuf::from("application.php")
+                    } else {
+                        let mut args =
+                            application.remove("args").unwrap_or_else(|| {
+                                serde_yaml::Value::Sequence(Vec::new())
+                            });
+                        args.as_sequence_mut()
+                            .ok_or("php.application.args must be a sequence")?
+                            .insert(0, serde_yaml::to_value(root)?);
+                        application.insert("args".into(), args);
+                        PathBuf::from(
+                            "vendor/claviron/laravel/runners/application.php",
+                        )
+                    };
+                    application.insert(
+                        "script_path".into(),
+                        serde_yaml::to_value(entry)?,
+                    );
+                }
+            }
+            PhpRunner::Script => {
+                if php.contains_key("application")
+                    || php.contains_key("applications")
+                {
+                    return Err("php.application requires request_mode: application; script execution uses php.script and php.sapi".into());
+                }
+            }
+            #[allow(unreachable_patterns)]
+            _ => unreachable!("mode was validated"),
+        }
+        Ok(packages.map(|packages| packages.frameworks()).unwrap_or_default())
+    }
+
+    pub(crate) fn script_route(
+        &self,
+        state: &claviron::runtime::AppState,
+    ) -> claviron::runtime::registry::Result<claviron::php::PhpConfig> {
+        use claviron::runtime::registry;
+        let value =
+            self.php.get("script").cloned().unwrap_or_else(|| {
+                serde_yaml::Value::Mapping(Default::default())
+            });
+        let mut route = value.as_mapping().cloned().ok_or_else(|| {
+            registry::Error::msg("php.script must be a mapping")
+        })?;
+        route.entry("runner".into()).or_insert("script".into());
+        route.entry("entry_script".into()).or_insert("index.php".into());
+        let route: claviron::php::PhpConfig = expand(state, &route.into())?;
+        if route.runner != crate::PhpRunner::Script {
+            return Err(registry::Error::msg(
+                "php.script.runner must be script",
+            ));
+        }
+        Ok(route)
+    }
+
     fn validate_database_features(&self) -> crate::Result<()> {
         let Some(database) = &self.database else {
             return Ok(());
@@ -220,22 +328,45 @@ impl Configuration {
                 .unwrap_or_default();
             claviron::db::register_with_config(state, database)?;
         }
-        let yaml = serde_yaml::to_string(&self.php)
+        let mode = self.request_mode.ok_or_else(|| {
+            registry::Error::msg("PHP request mode was not prepared")
+        })?;
+        let mut php = self.php.clone();
+        if let Some(mapping) = php.as_mapping_mut() {
+            mapping.remove("script");
+        }
+        let yaml = serde_yaml::to_string(&php)
             .map_err(|error| registry::Error::msg(error.to_string()))?;
-        claviron::ephp::register_application_from_yaml(
-            state,
-            application,
-            &yaml,
-            claviron::app::ApplicationDescription {
-                frameworks,
-                icon,
-                ..claviron::app::ApplicationDescription::new(
-                    "php",
-                    "application",
-                )
+        let description = claviron::app::ApplicationDescription {
+            frameworks,
+            icon,
+            ..claviron::app::ApplicationDescription::new("php", mode.as_str())
                 .runner("Lumenize")
-            },
-        )?;
+        };
+        match mode {
+            crate::PhpRunner::Application => {
+                claviron::ephp::register_application_from_yaml(
+                    state,
+                    application,
+                    &yaml,
+                    description,
+                )?
+            }
+            crate::PhpRunner::Script => {
+                claviron::ephp::register_script_from_yaml(
+                    state,
+                    application,
+                    &yaml,
+                    description,
+                )?
+            }
+            #[allow(unreachable_patterns)]
+            _ => {
+                return Err(registry::Error::msg(
+                    "Lumenize supports application or script request mode",
+                ));
+            }
+        }
         // Registration declared the process INI above; no evaluation occurs
         // until configuration preparation, after all native extensions exist.
         let root = std::env::current_dir()
@@ -314,6 +445,16 @@ impl Configuration {
         }
         Ok(())
     }
+}
+
+fn validate_mode(mode: crate::PhpRunner) -> crate::Result<()> {
+    if !matches!(mode, crate::PhpRunner::Application | crate::PhpRunner::Script)
+    {
+        return Err(
+            "Lumenize supports application or script request mode".into()
+        );
+    }
+    Ok(())
 }
 
 fn expand<T: serde::de::DeserializeOwned>(

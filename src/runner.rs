@@ -20,6 +20,7 @@ type Registration = Box<dyn FnOnce(&AppState) -> registry::Result<()> + Send>;
 pub struct Runner {
     application: String,
     options: Options,
+    request_mode: Option<crate::PhpRunner>,
     registrations: Vec<Registration>,
     #[cfg(feature = "axum")]
     interceptor: Option<Registration>,
@@ -30,6 +31,7 @@ impl Runner {
         Self {
             application: application.into(),
             options: Options::default(),
+            request_mode: None,
             registrations: Vec::new(),
             #[cfg(feature = "axum")]
             interceptor: None,
@@ -41,6 +43,15 @@ impl Runner {
         options: Options,
     ) -> Self {
         self.options = options;
+        self
+    }
+
+    /// Override YAML and automatic detection, independent of builder order.
+    pub fn with_request_mode(
+        mut self,
+        mode: crate::PhpRunner,
+    ) -> Self {
+        self.request_mode = Some(mode);
         self
     }
 
@@ -100,13 +111,14 @@ impl Runner {
         let registrations = self.registrations;
         #[cfg(feature = "axum")]
         let interceptor = self.interceptor;
+        if let Some(mode) = self.request_mode {
+            self.options.configuration.request_mode = Some(mode);
+        }
+        let root = std::env::current_dir()?;
+        let detected_framework =
+            self.options.configuration.prepare_php(&root)?;
         if self.options.runner.frameworks.is_none() {
-            let root = std::env::current_dir()?;
-            self.options.runner.frameworks = Some(
-                claviron::ephp::framework::ComposerPackages::read(&root)
-                    .map(|packages| packages.frameworks())
-                    .unwrap_or_default(),
-            );
+            self.options.runner.frameworks = Some(detected_framework);
         }
         self.options.runner.icon.get_or_insert_with(|| "laravel".into());
         self.options.validate()?;
@@ -179,9 +191,17 @@ impl Runner {
                 // The owner, then what stands in front of it, then the
                 // application's own registrations, which compose in front.
                 let php = PhpService::new();
+                let script = if launch.own.request_mode
+                    == Some(crate::PhpRunner::Script)
+                {
+                    Some(launch.own.script_route(state)?)
+                } else {
+                    None
+                };
                 state.registry_ref().register(Arc::new(PhpOwner::new(
                     application.clone(),
                     php.clone(),
+                    script,
                 )))?;
                 claviron_runner::register_owner(state, Owner::new(php))?;
                 let root = std::env::current_dir()

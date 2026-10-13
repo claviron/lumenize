@@ -19,6 +19,7 @@ pub use claviron::axum;
 /// front of PHP. Register it with `register_routable`.
 #[cfg(feature = "axum")]
 pub use claviron::http::routing::{Routable, register_routable};
+pub use claviron::php::PhpRunner;
 pub use claviron::runtime::{FleetName, Register, WorkerCount};
 #[cfg(feature = "axum")]
 pub use claviron_runner::register_router;

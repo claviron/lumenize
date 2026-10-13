@@ -1,5 +1,40 @@
 use super::*;
 
+#[test]
+fn octane_detection_and_explicit_modes_select_execution() {
+    use crate::PhpRunner;
+    let root = tempfile::tempdir().unwrap();
+    let mut plain = Configuration::default();
+    plain.prepare_php(root.path()).unwrap();
+    assert_eq!(plain.request_mode, Some(PhpRunner::Script));
+
+    std::fs::write(
+        root.path().join("composer.json"),
+        r#"{"require":{"laravel/framework":"*","laravel/octane":"*"}}"#,
+    )
+    .unwrap();
+    let mut octane = Configuration::default();
+    assert_eq!(octane.prepare_php(root.path()).unwrap(), ["Laravel"]);
+    assert_eq!(octane.request_mode, Some(PhpRunner::Application));
+
+    let mut explicit_script = Configuration {
+        request_mode: Some(PhpRunner::Script),
+        ..Default::default()
+    };
+    explicit_script.prepare_php(root.path()).unwrap();
+    assert_eq!(explicit_script.request_mode, Some(PhpRunner::Script));
+
+    let mut explicit_application: Configuration = serde_yaml::from_str("request_mode: application\nphp: {application: {script_path: custom.php, framework: Vanilla}}\n").unwrap();
+    std::fs::remove_file(root.path().join("composer.json")).unwrap();
+    explicit_application.prepare_php(root.path()).unwrap();
+    assert_eq!(explicit_application.request_mode, Some(PhpRunner::Application));
+    assert_eq!(
+        explicit_application.php["application"]["script_path"],
+        "custom.php"
+    );
+    assert_eq!(explicit_application.php["application"]["framework"], "Vanilla");
+}
+
 /// Lumenize's keys and the runner's share one flat file, and a key neither
 /// knows is refused rather than ignored.
 #[test]
@@ -27,7 +62,7 @@ fn a_flat_file_divides_and_a_typo_is_refused() {
 #[test]
 fn a_launch_survives_the_envelope() {
     let mut sent: Launch = serde_yaml::from_str(
-        "orbit: true\nfleet_name: example\nworkers: 2\nrequests:\n  head_timeout: 60s\nconfig_path: deployment.yaml\nphp: {application: {script_path: application.php}}\nlogging: {path: logs/system.log}\nbroadcasting: {key: '${APP_KEY}', secret: '${APP_SECRET}'}\n",
+        "orbit: true\nfleet_name: example\nworkers: 2\nrequest_mode: application\nrequests:\n  head_timeout: 60s\nconfig_path: deployment.yaml\nphp: {application: {script_path: application.php}}\nlogging: {path: logs/system.log}\nbroadcasting: {key: '${APP_KEY}', secret: '${APP_SECRET}'}\n",
     )
     .unwrap();
     let prepared = sent.prepare("example-app".into()).unwrap();
@@ -36,6 +71,7 @@ fn a_launch_survives_the_envelope() {
     assert_eq!(prepared.fleet_name.as_str(), "example");
     assert_eq!(back.runner.name.as_deref(), Some("example-app"));
     assert_eq!(back.runner.workers, None, "a worker starts no workers");
+    assert_eq!(back.own.request_mode, Some(crate::PhpRunner::Application));
     assert_eq!(back.own.config_path, Some(PathBuf::from("deployment.yaml")));
     assert_eq!(back.own.broadcasting.unwrap()["secret"], "${APP_SECRET}");
     assert_eq!(back.own.logging.unwrap()["path"], "logs/system.log");

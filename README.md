@@ -88,6 +88,7 @@ name: web
 fleet_name: web
 tcp: 127.0.0.1:8200
 orbit: true
+request_mode: application
 php:
   application:
     script_path: application.php
@@ -105,7 +106,44 @@ Paths in the file are
 relative to the application's working directory. Laravel routes and business
 logic remain PHP-owned. Shared Laravel integration remains in Claviron.
 
-Application management reports PHP runtime, Lumenize runner and application
+### Request mode
+
+Without an explicit selection, Lumenize inspects the project's Composer
+packages at launch: `laravel/octane` selects `application`; otherwise it selects
+`script`. Installed packages take precedence over `composer.lock`, then
+`composer.json` runtime requirements. Workers inherit the resolved selection.
+No request inspects Composer or changes execution mode.
+
+`request_mode: application` or `request_mode: script` in YAML overrides
+detection. Code can override YAML with
+`Runner::new("web").with_request_mode(lumenize::PhpRunner::Script)`;
+this choice survives a later `with_options` or `with_config_path` call.
+
+Application mode uses the persistent receive/respond adapter. An explicit
+`php.application.script_path` is retained; otherwise the project-local
+`application.php` is used when present, then the Composer package's
+`vendor/claviron/laravel/runners/application.php` Octane entry. Script mode
+executes the ordinary `public/index.php` afresh for each request using the
+existing SAPI pool. Its optional route overrides reuse Claviron's `PhpConfig`:
+
+```yaml
+request_mode: script
+php:
+  sapi:
+    pool: {min_idle: 2, max_idle: 2, max_size: 8}
+  script:
+    entry_script: index.php
+    # dir is relative to public; an absolute directory is also accepted.
+```
+
+Both `php` and the selected entry section can be omitted to use these defaults.
+An application section in script mode, or a script section in application
+mode, is refused instead of silently discarding it. PHP engine, INI, pool and
+lifecycle options keep their existing schemas. Script mode requires an enabled
+SAPI pool. Application management controls that same execution owner in either
+mode; start/stop/restart does not disconnect the runner's Link lane.
+
+Application management reports PHP runtime, Lumenize runner and the selected
 request mode. `frameworks: [Laravel]` in the launch (or repeatable `--framework`)
 declares free-form informational tags; an explicit
 `php.application.frameworks` takes precedence. Scalar `framework` remains accepted.
@@ -118,7 +156,8 @@ The default admin-GUI icon is `laravel`. An explicit `icon` (or `--icon`)
 overrides it, independently of framework discovery and request mode.
 Code uses the same `Options.runner.icon` and `Options.runner.frameworks` fields.
 The GUI owns the icon catalog and uses the runtime default for unknown codes.
-Neither icons nor framework tags select PHP mode.
+Neither icons nor framework tags select PHP mode; Octane discovery and explicit
+`request_mode` retain the independent rules above.
 
 PHP configuration documents returned as arrays are supported automatically:
 declare `Format::Custom("php")` on a Rust `Configurable` provider. The runner
@@ -345,8 +384,8 @@ and an explicit mount at the same prefix retains its policy.
 - Orbit uses Claviron's existing exchange/stream protocol and runtime identity
   `php`. All participants must agree on compiled transport geometry.
 - Standalone and supervised master/worker composition use the shared lifecycle.
-  Script-mode routing, an application-owned multihost edge and starter generation
-  remain future work, independent of the existing PHP pool capacity.
+  An application-owned multihost edge and starter generation remain future work,
+  independent of the existing PHP pool capacity.
 
 See [ARCHITECTURE.md](ARCHITECTURE.md) for ownership and lifecycle contracts.
 

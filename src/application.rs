@@ -8,7 +8,10 @@ use std::sync::{Arc, OnceLock};
 use std::task::{Context, Poll};
 
 use async_trait::async_trait;
-use claviron::ephp::{PhpApplicationAdapter, PhpApplicationService};
+use claviron::ephp::{
+    PhpApplicationAdapter, PhpApplicationService, PhpScriptAdapter,
+    PhpScriptService,
+};
 use claviron::http::RouteResponse;
 use claviron::runtime::registry::{self, Bootable};
 use claviron::runtime::{AppState, Component};
@@ -18,7 +21,12 @@ use tower::Service;
 
 /// The named PHP application as a service, filled at boot.
 #[derive(Clone)]
-pub(crate) struct PhpService(Arc<OnceLock<PhpApplicationAdapter>>);
+pub(crate) struct PhpService(Arc<OnceLock<PhpAdapter>>);
+
+enum PhpAdapter {
+    Application(PhpApplicationAdapter),
+    Script(PhpScriptAdapter),
+}
 
 impl PhpService {
     pub(crate) fn new() -> Self {
@@ -46,7 +54,13 @@ impl Service<AppRequest> for PhpService {
         let php = Arc::clone(&self.0);
         Box::pin(async move {
             let adapter = php.get().expect("PHP boots before ingress starts");
-            adapter.handle(request.map(|body| body.boxed_unsync())).await
+            let request = request.map(|body| body.boxed_unsync());
+            match adapter {
+                PhpAdapter::Application(adapter) => {
+                    adapter.handle(request).await
+                }
+                PhpAdapter::Script(adapter) => adapter.handle(request).await,
+            }
         })
     }
 }
@@ -56,21 +70,24 @@ impl Service<AppRequest> for PhpService {
 pub(crate) struct PhpOwner {
     name: String,
     php: PhpService,
+    script: Option<claviron::php::PhpConfig>,
 }
 
 impl PhpOwner {
     pub(crate) fn new(
         name: String,
         php: PhpService,
+        script: Option<claviron::php::PhpConfig>,
     ) -> Self {
-        Self { name, php }
+        Self { name, php, script }
     }
 }
 
 impl Component<AppState> for PhpOwner {
     /// The PHP application served behind everything else. A master with
     /// workers loads no PHP, so it is required only where the owner binds.
-    type Deps = (Option<Arc<PhpApplicationService>>,);
+    type Deps =
+        (Option<Arc<PhpApplicationService>>, Option<Arc<PhpScriptService>>);
 
     fn name(&self) -> &'static str {
         "LumenizePhpOwner"
@@ -90,7 +107,7 @@ impl Component<AppState> for PhpOwner {
             .ok_or_else(|| {
                 registry::Error::msg("PHP runtime was not registered")
             })?;
-        if !runtime.has_application(&self.name) {
+        if self.script.is_none() && !runtime.has_application(&self.name) {
             return Err(registry::Error::msg(format!(
                 "PHP application {:?} is not registered",
                 self.name
@@ -101,10 +118,10 @@ impl Component<AppState> for PhpOwner {
 }
 
 #[async_trait]
-impl Bootable<AppState, (Option<Arc<PhpApplicationService>>,)> for PhpOwner {
+impl Bootable<AppState, <Self as Component<AppState>>::Deps> for PhpOwner {
     async fn boot(
         &self,
-        (service,): (Option<Arc<PhpApplicationService>>,),
+        (application, script): <Self as Component<AppState>>::Deps,
         state: &AppState,
     ) -> registry::Result<()> {
         // A master with workers serves nothing and loads no PHP; its workers
@@ -112,13 +129,37 @@ impl Bootable<AppState, (Option<Arc<PhpApplicationService>>,)> for PhpOwner {
         if state.is_master() {
             return Ok(());
         }
-        let service = service.ok_or_else(|| {
-            registry::Error::msg("PHP application service was not registered")
-        })?;
-        let _ = self
-            .php
+        let adapter = if let Some(config) = &self.script {
+            let service = script.ok_or_else(|| {
+                registry::Error::msg("PHP script service was not registered")
+            })?;
+            let root = std::env::current_dir()
+                .map_err(|error| registry::Error::msg(error.to_string()))?;
+            let runtime = claviron::php::PhpRuntime::from_config(
+                state,
+                config,
+                root.join("public"),
+                &[],
+            );
+            PhpAdapter::Script(PhpScriptAdapter::new(
+                service,
+                Arc::new(runtime),
+            ))
+        } else {
+            let service = application.ok_or_else(|| {
+                registry::Error::msg(
+                    "PHP application service was not registered",
+                )
+            })?;
+            PhpAdapter::Application(PhpApplicationAdapter::new(
+                service,
+                self.name.clone(),
+            ))
+        };
+        self.php
             .0
-            .set(PhpApplicationAdapter::new(service, self.name.clone()));
+            .set(adapter)
+            .map_err(|_| registry::Error::msg("PHP owner was already bound"))?;
         Ok(())
     }
 }
