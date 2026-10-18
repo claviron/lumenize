@@ -9,6 +9,8 @@ Source changes belong in the [Lumenize repository](https://github.com/claviron/l
 The standalone Composer repository is generated from committed package sources;
 Packagist versions follow its release tags. Composer installs PHP integration
 code, not the native Claviron host or the Lumenize executable.
+Lumenize owns the package export tooling and release configuration in this
+repository; Claviron releases its `claviron/sapi` dependency independently.
 
 This package replaces Laravel's server-side Pusher HTTP call with Claviron's
 native broadcast primitive. Browser clients continue to use Laravel Echo and
@@ -53,22 +55,16 @@ The package subscribes the persistent application loop to both bus topics.
 
 ## Lumenize console
 
-The separate Rust `lumenize-cli` package builds a thin `lumenize` binary
-using the root library's independent `cli` feature, without HTTP `runner`.
-It executes the application's own Artisan entry:
+The `lumenize` executable runs your application's own Artisan entry. It is
+installed separately from the Composer package. From your application directory:
 
 ```sh
-cargo build -p lumenize-cli --features cli --bin lumenize
+lumenize list
 ```
 
-Install it on your Cargo binary path from the library checkout:
-
-```sh
-cargo install --path cli --features cli --bin lumenize --locked
-```
-
-Then run `lumenize list` from the application root. The executable name is
-`lumenize`; its Rust package is `lumenize-cli`.
+It does not start an HTTP server. If you build the executable from source, its
+Rust package is `lumenize-cli`; see the
+[CLI guide](https://github.com/claviron/lumenize/tree/main/cli).
 
 Run that executable from your Laravel application root, for example
 `/path/to/lumenize list`. It executes `./artisan` in the native PHP engine;

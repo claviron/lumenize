@@ -1,0 +1,21 @@
+[project]
+name = "lumenize-maintenance"
+version = "0.0.0"
+description = "Local release tooling for the Lumenize repository"
+requires-python = ">=3.15"
+classifiers = ["Private :: Do Not Upload"]
+dependencies = []
+
+[tool.uv]
+package = false
+
+# Export only this repository's committed PHP sources; not a Python package.
+[tool.lumenize.composer]
+state-directory = "target/composer"
+
+[[tool.lumenize.composer.packages]]
+name = "claviron/laravel"
+remote = "git@github.com:claviron/laravel.git"
+directory = "php"
+license = "LICENSE"
+include = ["composer.json", "README.md", "src", "config", "runners", "stubs"]

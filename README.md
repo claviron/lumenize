@@ -2,6 +2,33 @@
 
 Laravel integration for applications hosted by Claviron.
 
+Keep your Laravel routes, controllers, models and notifications. Lumenize connects
+them to a native application host, with optional shared cache, sessions, queues
+and broadcasting. You do not need to write Rust to use the PHP integration.
+
+## Start with Laravel
+
+Install the PHP adapters in your application:
+
+```sh
+composer require claviron/laravel:0.1.0
+```
+
+Composer installs the Laravel integration and its `claviron/sapi` dependency.
+It does not install the native host or the `lumenize` executable; those are
+prepared separately. Once the executable is installed, run Artisan commands
+from your application directory:
+
+```sh
+lumenize list
+```
+
+Your application's configuration and authorization remain yours. Enable only
+the services your host provides; installing the package does not start a server
+or replace your existing application. Start with the [PHP guide](php/README.md).
+
+## Packages
+
 The library separates framework integration from its optional application
 runner. An application may use the integration APIs while retaining its own
 Claviron boot, Edge hosts, configuration, providers and process lifecycle.
@@ -15,7 +42,31 @@ Claviron boot, Edge hosts, configuration, providers and process lifecycle.
 The Rust packages are development implementations with publishing disabled.
 The published `lumenize` name-reservation placeholder is not this implementation.
 
-## Use the library without the runner
+## PHP integration
+
+Install the companion Composer package `claviron/laravel`. Its PHP integration
+classes use `Lumenize\`, independently of the engine's `Claviron\` classes.
+Driver names, event topics and native functions are unchanged. The package
+continues to consume `claviron/sapi`, supplied by Claviron PHP Embed.
+
+Update imports, explicit providers and Composer discovery metadata together;
+there is no old-namespace alias. Regenerate autoload/provider/config caches and
+drain or migrate queued payloads containing the former PHP class names before
+switching running workers. Native `Claviron\Runtime` envelopes stay unchanged.
+
+Laravel owns its container, models, authorization, notifications, queues and
+request semantics. The host may run an ordinary front controller in Script
+mode or select the package's Octane adapter in Application mode. See the
+[integration guide](docs/README.md) and [Composer documentation](php/README.md).
+
+## Extend with Rust (optional)
+
+Rust lets you add native services or build a host tailored to your application.
+Start with the ready-made Runner below when you want the supplied server
+composition. Direct integration is for applications that already own a host:
+it adds Laravel support without starting a second server.
+
+### Use the library without the runner
 
 The library has no default features. Configuration evaluation and
 `artisan::run` are available directly; `auth` enables the auth-event adapter and
@@ -49,24 +100,7 @@ it is not a sandbox. Auth events are successful state-transition facts,
 not a new authentication mechanism. Broadcasting retains the existing
 `claviron_laravel_broadcast` function and protocol behavior.
 
-## PHP integration
-
-Install the companion Composer package `claviron/laravel`. Its PHP integration
-classes use `Lumenize\`, independently of the engine's `Claviron\` classes.
-Driver names, event topics and native functions are unchanged. The package
-continues to consume `claviron/sapi`, supplied by Claviron PHP Embed.
-
-Update imports, explicit providers and Composer discovery metadata together;
-there is no old-namespace alias. Regenerate autoload/provider/config caches and
-drain or migrate queued payloads containing the former PHP class names before
-switching running workers. Native `Claviron\Runtime` envelopes stay unchanged.
-
-Laravel owns its container, models, authorization, notifications, queues and
-request semantics. The host may run an ordinary front controller in Script
-mode or select the package's Octane adapter in Application mode. See the
-[integration guide](docs/README.md) and [Composer documentation](php/README.md).
-
-## Ready-made application composition
+### Ready-made application composition
 
 Enable `runner` when the application wants `lumenize::{Options, Runner}` instead
 of composing its own Edge. The downstream application still owns its `main.rs`.

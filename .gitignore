@@ -70,6 +70,7 @@ tmp/
 !/.vscode/*.code-snippets
 /.nvimlog
 /.venv/
+__pycache__/
 .history/
 .vs/
 *.swp
