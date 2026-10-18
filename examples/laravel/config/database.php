@@ -5,6 +5,7 @@ return [
     'connections' => [
         'sqlite' => [
             'driver' => 'sqlite',
+            'claviron' => 'example',
             'database' => env('DB_DATABASE', database_path('database.sqlite')),
             'prefix' => '',
             'foreign_key_constraints' => true,

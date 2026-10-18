@@ -1,0 +1,9 @@
+# LARAVEL_EXAMPLE_ROOT is the absolute directory of the Laravel example.
+laravel.test:
+  aliases: [localhost]
+  root: ${LARAVEL_EXAMPLE_ROOT}/public
+  transport:
+    non_ssl: serve
+    protocols: [h1]
+  orbit:
+    - { path: /, application: laravel-example, fleet: lumenize }

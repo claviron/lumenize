@@ -6,6 +6,7 @@ namespace Lumenize\Providers;
 
 use Lumenize\Database\PostgresConnection;
 use Lumenize\Database\MySqlConnection;
+use Lumenize\Database\SQLiteConnection;
 use Illuminate\Database\Connection;
 use Illuminate\Database\Connectors\ConnectionFactory;
 use Illuminate\Database\DatabaseManager;
@@ -30,6 +31,29 @@ final class DatabaseServiceProvider extends ServiceProvider
 {
     public function boot(DatabaseManager $database): void
     {
+        $database->extend('sqlite', function (array $config, string $name): Connection {
+            $pool = $config['claviron'] ?? null;
+            if ($pool === null || $pool === false) {
+                return $this->factory()->make($config, $name);
+            }
+            if (isset($config['read']) || isset($config['write'])) {
+                throw new InvalidArgumentException(
+                    "Database connection [{$name}] cannot combine `claviron` with a read/write split.",
+                );
+            }
+            if (!function_exists('claviron_runtime_configured') || !claviron_runtime_configured()) {
+                return $this->factory()->make($config, $name);
+            }
+
+            // The native constructor fails closed when SQLite was not compiled
+            // into the host. Ordinary Artisan continues using Laravel's PDO.
+            return new SQLiteConnection(
+                is_string($pool) ? $pool : 'default',
+                (string) ($config['database'] ?? ''),
+                (string) ($config['prefix'] ?? ''),
+                Arr::add(Arr::add($config, 'prefix', ''), 'name', $name),
+            );
+        });
         $database->extend('mysql', function (array $config, string $name): Connection {
             $pool = $config['claviron'] ?? null;
             if ($pool === null || $pool === false) {

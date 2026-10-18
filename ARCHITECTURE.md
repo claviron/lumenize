@@ -256,6 +256,21 @@ or the Octane client stopping ends admission; the worker then terminates.
 Worker failures retain their original exception at the native host boundary.
 Consumers still own their bootstrap, profiles, providers and authentication.
 
+## Native SQLite database adapter
+
+`Providers\DatabaseServiceProvider` also recognizes `claviron` on `sqlite`
+connections. Hosted opt-in requires the native SQLite feature; ordinary
+Artisan retains Laravel's PDO factory. `Database\SQLiteConnection` keeps
+Laravel's grammar, query events, Eloquent hydration and schema processor;
+`SQLiteProcessor` reads each native statement's insert ID without PDO.
+
+Connection leases, parameter/result codecs and abandoned-transaction cleanup
+belong to Claviron PHP Embed. The SQLite file is opened by the application's
+Rust layer in the same process as PHP, never by an Orbit caller or Edge.
+Laravel owns nested savepoints, transaction modes, retry counts and afterCommit
+callbacks. An ambiguous COMMIT or callback failure is not replayed. Connection
+options, including the write-lock busy timeout, belong to the native pool config.
+
 ## Native MySQL database adapter
 
 `Providers\DatabaseServiceProvider` recognizes `claviron: true` or a named pool

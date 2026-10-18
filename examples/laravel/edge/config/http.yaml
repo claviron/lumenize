@@ -1,0 +1,15 @@
+# This example Edge is local only. Hyper supplies its native header deadline.
+listeners:
+  local:
+    transport: tcp
+    tls: false
+    protocols: h1
+    listen: 127.0.0.1:8080
+    max_connections: 100
+    # Reuse the existing Claviron example Edge's explicit request policy.
+    requests:
+      max_body_size: 64 MiB
+      body_read_timeout: 30s
+      head_timeout: 60s
+    responses:
+      body_idle_timeout: 60s

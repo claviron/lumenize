@@ -53,6 +53,14 @@ Event::listen(ChannelVacated::class, function (ChannelVacated $event): void {
 The package subscribes the persistent application loop to both bus topics.
 `appId` keeps applications separate even when they use the same channel name.
 
+## Native SQLite connections
+
+Set `'claviron' => 'example'` on a Laravel SQLite connection to use the host's
+named `example` pool. The host must enable `sqlite` and configure that pool;
+missing native support is an error, not a silent PDO fallback. Eloquent,
+query events, savepoints and transaction callbacks remain Laravel APIs.
+Ordinary Artisan commands continue using Laravel's PDO SQLite driver.
+
 ## Lumenize console
 
 The `lumenize` executable runs your application's own Artisan entry. It is

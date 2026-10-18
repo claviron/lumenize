@@ -25,8 +25,10 @@ If Composer is installed as a PHP executable, pass its path instead of
 
 The first migration creates `database/database.sqlite` through Laravel. This
 is this example's own local database, not a shared Liberum database. Laravel's
-PDO connection opens the file inside the PHP process hosted by Lumenize. There
-is no Rust SQL pool, separate database service, or database connection over Orbit.
+PDO connection is used by ordinary Artisan commands. In the Lumenize host,
+Eloquent uses the Rust SQLite pool declared in `lumenize.yaml`, in the same
+process as PHP. Its `busy_timeout: 100ms` limits waiting for another writer's
+lock, not query execution time. There is no database connection over Orbit.
 Migrations run only when you ask, never during HTTP startup. Seeding is repeatable.
 
 ## Run
@@ -69,6 +71,13 @@ For an isolated PHP check after installing dependencies:
 It uses a temporary SQLite database and checks the Laravel routes, validation,
 CSRF and note changes. It does not compile or start the native runner. Running
 the embedded host is a separate check, not something this PHP test proves.
+
+`tests/native-application.php` is an opt-in native harness: copy the launch
+configuration locally and change only `php.application.script_path` to that
+file. It checks native Eloquent, BLOBs, savepoints, constraints and commit
+callbacks before serving the normal application. In that harness only, GET
+`/_native/sqlite/abandon` followed by `/_native/sqlite/clean` verifies cleanup
+between HTTP requests. The ordinary launch exposes neither test route.
 
 ## Add an Edge later
 

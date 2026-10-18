@@ -24,6 +24,27 @@ or move the SQLite database. Do not run a second copy just to add this option.
 
 ## 2. Add a host to your Edge
 
+For the supplied local configuration, start Claviron's example `edge-server`
+binary in a second terminal, from `examples/laravel`:
+
+```sh
+bash edge/run.sh /path/to/edge-server
+```
+
+Use a binary built from a compatible Claviron version and matching Orbit
+transport settings. This script does not build or download it. It starts only
+its own standalone Edge on <http://localhost:8080>, using `edge/config/`.
+`localhost` is a local alias of `laravel.test`, so no hosts-file
+edit is needed for that URL. Keep the application terminal running too.
+
+The configuration passes all application requests through Orbit, with no TCP
+upstream or embedded PHP in Edge. Its request limits reuse Claviron's existing
+example Edge policy. SQLite stays in the application process. Stop this Edge
+with Ctrl-C when done; the application keeps running.
+
+To use an Edge you already operate instead, do not start another listener on
+the same port. Add the host below to that Edge's own vhost document.
+
 In the Edge's vhost document, add the following, replacing the public directory
 with the path on your machine:
 
