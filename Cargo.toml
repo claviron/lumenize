@@ -63,7 +63,7 @@ required-features = ["broadcast"]
 
 [workspace]
 resolver = "3"
-members = ["cli"]
+members = ["cli", "examples/laravel"]
 default-members = ["."]
 
 [workspace.package]

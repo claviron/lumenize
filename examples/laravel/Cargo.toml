@@ -1,0 +1,11 @@
+[package]
+name = "lumenize-laravel-example"
+version = "0.1.0"
+edition.workspace = true
+publish = false
+description = "A local Laravel and SQLite example for Lumenize"
+
+[dependencies]
+# The workspace dependency points to the Lumenize library in this repository.
+lumenize = { workspace = true, features = ["runner", "cli", "files"] }
+tokio = { workspace = true, features = ["macros", "rt-multi-thread"] }

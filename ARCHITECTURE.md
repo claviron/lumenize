@@ -2,6 +2,13 @@
 
 ## Repository and boot ownership
 
+`examples/laravel` is an unpublished workspace member for local co-development.
+Its Rust host consumes the root library through a workspace path dependency;
+Composer symlinks the local `php/` package. Laravel owns a process-local PDO
+SQLite connection and migrations. The default ingress is loopback TCP, not
+Orbit; optional Edge composition is documented separately. This application
+is not a library fixture and is never booted by the library's Cargo tests.
+
 The root `lumenize` package owns the native Laravel adapters and the Composer
 package under `php/`. It consumes only Claviron's public facade. Configuration
 and Artisan APIs are available without a serving composition; independent

@@ -1,0 +1,15 @@
+/.env
+/vendor/
+/database/*.sqlite
+/database/*.sqlite-*
+/bootstrap/cache/*
+!/bootstrap/cache/.gitkeep
+/storage/**
+!/storage/framework/
+!/storage/framework/sessions/
+!/storage/framework/sessions/.gitkeep
+!/storage/framework/views/
+!/storage/framework/views/.gitkeep
+!/storage/logs/
+!/storage/logs/.gitkeep
+!/composer.lock

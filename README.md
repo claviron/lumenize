@@ -8,6 +8,9 @@ and broadcasting. You do not need to write Rust to use the PHP integration.
 
 ## Start with Laravel
 
+For a local checkout, try the [Laravel and SQLite example](examples/laravel/README.md).
+It uses this repository's PHP and Rust packages directly; no release is required.
+
 Install the PHP adapters in your application:
 
 ```sh

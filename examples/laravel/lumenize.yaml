@@ -1,0 +1,15 @@
+# Run from this application's directory. No Edge or Orbit is needed.
+name: laravel-example
+fleet_name: lumenize
+tcp: 127.0.0.1:8000
+orbit: false
+workers: 0
+request_mode: application
+try_files: true
+php:
+  engine:
+    ini_path: ${PHP_DIR}/etc/php.ini
+    ini_scan_dir: ${PHP_DIR}/etc/conf.d/embed
+  application:
+    script_path: application.php
+    env_file: .env
