@@ -2,14 +2,14 @@
 
 declare(strict_types=1);
 
-namespace Claviron\Laravel\Link;
+namespace Lumenize\Link;
 
-use Claviron\Laravel\EventBridge;
-use Claviron\Laravel\Link\Events\ApplicationConnected;
-use Claviron\Laravel\Link\Events\ApplicationLeft;
-use Claviron\Laravel\Link\Events\EdgeConnected;
-use Claviron\Laravel\Link\Events\EdgeLeft;
-use Claviron\Laravel\Link\Events\EdgeShutdownInitiated;
+use Lumenize\EventBridge;
+use Lumenize\Link\Events\ApplicationConnected;
+use Lumenize\Link\Events\ApplicationLeft;
+use Lumenize\Link\Events\EdgeConnected;
+use Lumenize\Link\Events\EdgeLeft;
+use Lumenize\Link\Events\EdgeShutdownInitiated;
 use Illuminate\Contracts\Events\Dispatcher;
 use Illuminate\Support\Facades\Log;
 

@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace Claviron\Laravel\Queue;
+namespace Lumenize\Queue;
 
 use Illuminate\Queue\Worker as IlluminateWorker;
 use Illuminate\Queue\WorkerOptions;

@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace Claviron\Laravel\Console;
+namespace Lumenize\Console;
 
 use Illuminate\Contracts\Queue\Job;
 use Illuminate\Queue\Console\WorkCommand as IlluminateWorkCommand;

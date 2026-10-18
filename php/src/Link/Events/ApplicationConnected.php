@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace Claviron\Laravel\Link\Events;
+namespace Lumenize\Link\Events;
 
 /** An application lane reached this edge; observed locally, never broadcast. */
 final class ApplicationConnected extends Introduction

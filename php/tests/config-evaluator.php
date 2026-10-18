@@ -7,7 +7,7 @@ declare(strict_types=1);
 require $argv[1];
 require_once __DIR__.'/../src/Config/ConfigEvaluator.php';
 
-use Claviron\Laravel\Config\ConfigEvaluator;
+use Lumenize\Config\ConfigEvaluator;
 use Illuminate\Support\Str;
 
 $check = static function (bool $condition): void {

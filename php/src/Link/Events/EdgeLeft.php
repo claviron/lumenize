@@ -2,9 +2,9 @@
 
 declare(strict_types=1);
 
-namespace Claviron\Laravel\Link\Events;
+namespace Lumenize\Link\Events;
 
-use Claviron\Laravel\Events\FleetEvent;
+use Lumenize\Events\FleetEvent;
 
 /**
  * The last lane of an edge left this application's fleet: that edge no longer

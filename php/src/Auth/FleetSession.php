@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace Claviron\Laravel\Auth;
+namespace Lumenize\Auth;
 
 use Illuminate\Contracts\Auth\Authenticatable;
 use Illuminate\Contracts\Auth\UserProvider;

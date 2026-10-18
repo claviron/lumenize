@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace Claviron\Laravel\Events;
+namespace Lumenize\Events;
 
 /**
  * What an invoked program reported when it ended.

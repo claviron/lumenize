@@ -2,9 +2,9 @@
 
 declare(strict_types=1);
 
-namespace Claviron\Laravel\Octane;
+namespace Lumenize\Octane;
 
-use Claviron\Laravel\EventBridge;
+use Lumenize\EventBridge;
 use Claviron\Runtime\Event;
 use Illuminate\Contracts\Debug\ExceptionHandler;
 use Illuminate\Foundation\Application;

@@ -2,10 +2,10 @@
 
 declare(strict_types=1);
 
-namespace Claviron\Laravel\Providers;
+namespace Lumenize\Providers;
 
-use Claviron\Laravel\Cache\DetachedStore;
-use Claviron\Laravel\Cache\Store;
+use Lumenize\Cache\DetachedStore;
+use Lumenize\Cache\Store;
 use Illuminate\Cache\CacheManager;
 use Illuminate\Cache\Repository;
 use Illuminate\Contracts\Foundation\Application;

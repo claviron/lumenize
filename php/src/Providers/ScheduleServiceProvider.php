@@ -2,16 +2,16 @@
 
 declare(strict_types=1);
 
-namespace Claviron\Laravel\Providers;
+namespace Lumenize\Providers;
 
-use Claviron\Laravel\Console\ErrandRunCommand;
-use Claviron\Laravel\Console\InvokeServeCommand;
-use Claviron\Laravel\Console\ScheduleCommand;
-use Claviron\Laravel\Console\ScheduleRunCommand;
-use Claviron\Laravel\EventBridge;
-use Claviron\Laravel\Invocation\Invoke;
-use Claviron\Laravel\Invocation\Registry;
-use Claviron\Laravel\Invocation\Runner;
+use Lumenize\Console\ErrandRunCommand;
+use Lumenize\Console\InvokeServeCommand;
+use Lumenize\Console\ScheduleCommand;
+use Lumenize\Console\ScheduleRunCommand;
+use Lumenize\EventBridge;
+use Lumenize\Invocation\Invoke;
+use Lumenize\Invocation\Registry;
+use Lumenize\Invocation\Runner;
 use Illuminate\Contracts\Container\BindingResolutionException;
 use Illuminate\Contracts\Events\Dispatcher;
 use Illuminate\Support\ServiceProvider;

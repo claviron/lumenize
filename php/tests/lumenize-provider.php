@@ -5,7 +5,7 @@ declare(strict_types=1);
 // Real configuration/provider contracts without booting an application or host.
 require $argv[1] ?? throw new LogicException('Supply a Composer autoloader');
 
-use Claviron\Laravel\Providers\LumenizeProvider;
+use Lumenize\Providers\LumenizeProvider;
 use Illuminate\Config\Repository;
 use Illuminate\Foundation\Application;
 use Illuminate\Support\ServiceProvider;

@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace Claviron\Laravel\Console;
+namespace Lumenize\Console;
 
 /** Process identity for console records emitted by Claviron-owned commands. */
 final class WorkerIdentity

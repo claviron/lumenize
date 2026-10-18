@@ -1,4 +1,9 @@
-# Claviron Laravel integration
+# Lumenize Laravel integration
+
+The `claviron/laravel` Composer package exposes Laravel adapters under `Lumenize\`.
+Claviron's native/static classes remain under `Claviron\`; driver names,
+native functions and event topics are unchanged. See the
+[namespace migration notes](../README.md#php-integration) before upgrading workers.
 
 This package replaces Laravel's server-side Pusher HTTP call with Claviron's
 native broadcast primitive. Browser clients continue to use Laravel Echo and
@@ -24,8 +29,8 @@ HTTP publisher is used by this connection.
 Fleet-global channel occupancy transitions are ordinary typed Laravel events:
 
 ```php
-use Claviron\Laravel\Broadcasting\Events\ChannelOccupied;
-use Claviron\Laravel\Broadcasting\Events\ChannelVacated;
+use Lumenize\Broadcasting\Events\ChannelOccupied;
+use Lumenize\Broadcasting\Events\ChannelVacated;
 use Illuminate\Support\Facades\Event;
 
 Event::listen(ChannelOccupied::class, function (ChannelOccupied $event): void {
@@ -77,7 +82,7 @@ binary: `php tests/artisan.php /path/to/vendor/autoload.php /path/to/lumenize`.
 
 ### Console configuration
 
-The auto-discovered `Claviron\Laravel\Providers\LumenizeProvider` supplies
+The auto-discovered `Lumenize\Providers\LumenizeProvider` supplies
 defaults only when Laravel is running in console mode. Applications disabling
 package discovery register that class in their own provider list.
 
@@ -121,7 +126,7 @@ that case, register its class with `relay()` before Laravel's listener chain
 is registered:
 
 ```php
-use Claviron\Laravel\EventBridge;
+use Lumenize\EventBridge;
 use App\Events\DemoEvent;
 
 app(EventBridge::class)->relay([DemoEvent::class]);

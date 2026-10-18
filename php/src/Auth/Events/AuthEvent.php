@@ -2,9 +2,9 @@
 
 declare(strict_types=1);
 
-namespace Claviron\Laravel\Auth\Events;
+namespace Lumenize\Auth\Events;
 
-use Claviron\Laravel\Events\FleetEvent;
+use Lumenize\Events\FleetEvent;
 use InvalidArgumentException;
 
 /** Shared auth fact; the optional native translator separately hydrates Laravel events. */

@@ -4,9 +4,9 @@ declare(strict_types=1);
 
 require $argv[1] ?? throw new LogicException('Supply a Composer autoloader');
 
-use Claviron\Laravel\Broadcasting\Broadcaster;
-use Claviron\Laravel\Broadcasting\UnconfiguredBroadcaster;
-use Claviron\Laravel\Providers\BroadcastingProvider;
+use Lumenize\Broadcasting\Broadcaster;
+use Lumenize\Broadcasting\UnconfiguredBroadcaster;
+use Lumenize\Providers\BroadcastingProvider;
 use Illuminate\Broadcasting\BroadcastManager;
 use Illuminate\Config\Repository;
 use Illuminate\Foundation\Application;

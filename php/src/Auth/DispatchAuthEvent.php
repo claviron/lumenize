@@ -2,9 +2,9 @@
 
 declare(strict_types=1);
 
-namespace Claviron\Laravel\Auth;
+namespace Lumenize\Auth;
 
-use Claviron\Laravel\Auth\Events\AuthEvent;
+use Lumenize\Auth\Events\AuthEvent;
 use Illuminate\Auth\Events\Login;
 use Illuminate\Auth\Events\Logout;
 use Illuminate\Auth\Events\Registered;

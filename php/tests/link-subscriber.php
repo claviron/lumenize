@@ -15,11 +15,11 @@ function claviron_event_subscribe_many(array $topics): void
 
 require $argv[1] ?? throw new LogicException('Supply a Composer autoloader');
 
-use Claviron\Laravel\EventBridge;
-use Claviron\Laravel\Link\Events\ApplicationConnected;
-use Claviron\Laravel\Link\Events\EdgeConnected;
-use Claviron\Laravel\Link\Events\EdgeShutdownInitiated;
-use Claviron\Laravel\Link\LinkSubscriber;
+use Lumenize\EventBridge;
+use Lumenize\Link\Events\ApplicationConnected;
+use Lumenize\Link\Events\EdgeConnected;
+use Lumenize\Link\Events\EdgeShutdownInitiated;
+use Lumenize\Link\LinkSubscriber;
 use Illuminate\Container\Container;
 use Illuminate\Events\Dispatcher;
 use Illuminate\Support\Facades\Log;

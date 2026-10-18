@@ -5,9 +5,9 @@ declare(strict_types=1);
 // Pure adapter regression: no Laravel application, database or native runtime.
 require $argv[1];
 
-use Claviron\Laravel\Auth\EloquentUserProvider;
-use Claviron\Laravel\Auth\FleetSession;
-use Claviron\Laravel\Auth\FleetSessionGuard;
+use Lumenize\Auth\EloquentUserProvider;
+use Lumenize\Auth\FleetSession;
+use Lumenize\Auth\FleetSessionGuard;
 use Illuminate\Auth\Authenticatable;
 use Illuminate\Contracts\Auth\Authenticatable as AuthenticatableContract;
 use Illuminate\Database\Eloquent\Model;

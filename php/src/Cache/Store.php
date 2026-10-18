@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace Claviron\Laravel\Cache;
+namespace Lumenize\Cache;
 
 use Illuminate\Contracts\Cache\Lock as LockContract;
 use Illuminate\Contracts\Cache\LockProvider;

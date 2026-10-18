@@ -11,7 +11,7 @@ function claviron_event_subscribe_many(array $topics): void { $GLOBALS['subscrip
 
 require $argv[1] ?? throw new LogicException('Supply a Composer autoloader');
 
-$bridge = new \Claviron\Laravel\EventBridge(new \Illuminate\Events\Dispatcher());
+$bridge = new \Lumenize\EventBridge(new \Illuminate\Events\Dispatcher());
 if ($bridge::available()) { throw new LogicException('An engine without events was reported ready'); }
 $bridge->subscribe([\stdClass::class]);
 if ($subscriptions !== []) { throw new LogicException('Unprepared event bus was called'); }

@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace Claviron\Laravel\Auth;
+namespace Lumenize\Auth;
 
 use Illuminate\Auth\RequestGuard;
 use Illuminate\Http\Request;

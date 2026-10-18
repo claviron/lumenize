@@ -2,9 +2,9 @@
 
 declare(strict_types=1);
 
-namespace Claviron\Laravel\Invocation;
+namespace Lumenize\Invocation;
 
-use Claviron\Laravel\Events\FleetEvent;
+use Lumenize\Events\FleetEvent;
 use Illuminate\Contracts\Container\Container;
 use InvalidArgumentException;
 use LogicException;

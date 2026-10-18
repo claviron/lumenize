@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace Claviron\Laravel\Logging;
+namespace Lumenize\Logging;
 
 use Illuminate\Log\Logger;
 use Monolog\Formatter\LineFormatter;

@@ -2,11 +2,11 @@
 
 declare(strict_types=1);
 
-namespace Claviron\Laravel\Invocation;
+namespace Lumenize\Invocation;
 
-use Claviron\Laravel\Events\InvocationCompleted;
-use Claviron\Laravel\Events\InvocationFailed;
-use Claviron\Laravel\EventBridge;
+use Lumenize\Events\InvocationCompleted;
+use Lumenize\Events\InvocationFailed;
+use Lumenize\EventBridge;
 use Claviron\Runtime\Event;
 use Claviron\Runtime\Invocation;
 use Illuminate\Contracts\Container\Container;

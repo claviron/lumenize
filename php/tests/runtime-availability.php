@@ -26,8 +26,8 @@ $factory = new \Illuminate\Database\Connectors\ConnectionFactory($app);
 $app->instance('db.factory', $factory);
 $cache = new \Illuminate\Cache\CacheManager($app);
 $database = new \Illuminate\Database\DatabaseManager($app, $factory);
-(new \Claviron\Laravel\Providers\CacheServiceProvider($app))->boot($cache);
-(new \Claviron\Laravel\Providers\DatabaseServiceProvider($app))->boot($database);
+(new \Lumenize\Providers\CacheServiceProvider($app))->boot($cache);
+(new \Lumenize\Providers\DatabaseServiceProvider($app))->boot($database);
 
 if (! $cache->store()->getStore() instanceof \Illuminate\Cache\ArrayStore) {
     throw new LogicException('Detached engine ignored the declared cache fallback');

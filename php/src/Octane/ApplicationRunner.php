@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace Claviron\Laravel\Octane;
+namespace Lumenize\Octane;
 
 use Closure;
 use Claviron\Runtime\Event;

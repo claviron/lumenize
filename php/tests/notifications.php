@@ -5,8 +5,8 @@ declare(strict_types=1);
 // Adapter contract only: no application boot, queue backend, mail or runtime.
 require $argv[1];
 
-use Claviron\Laravel\Notifications\Handler;
-use Claviron\Laravel\Notifications\Request;
+use Lumenize\Notifications\Handler;
+use Lumenize\Notifications\Request;
 use Illuminate\Contracts\Notifications\Dispatcher;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Notifications\Notification;

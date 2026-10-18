@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace Claviron\Laravel\Invocation;
+namespace Lumenize\Invocation;
 
 /**
  * A class that serves invocations submitted under its own name.

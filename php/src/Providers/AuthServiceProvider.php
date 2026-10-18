@@ -2,12 +2,12 @@
 
 declare(strict_types=1);
 
-namespace Claviron\Laravel\Providers;
+namespace Lumenize\Providers;
 
-use Claviron\Laravel\Auth\FleetSession;
-use Claviron\Laravel\Auth\FleetSessionGuard;
-use Claviron\Laravel\Auth\DispatchAuthEvent;
-use Claviron\Laravel\Auth\Events\AuthEvent;
+use Lumenize\Auth\FleetSession;
+use Lumenize\Auth\FleetSessionGuard;
+use Lumenize\Auth\DispatchAuthEvent;
+use Lumenize\Auth\Events\AuthEvent;
 use Illuminate\Contracts\Events\Dispatcher;
 use Illuminate\Auth\RequestGuard;
 use Illuminate\Support\ServiceProvider;

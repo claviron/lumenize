@@ -7,5 +7,5 @@ declare(strict_types=1);
 return static function (string $basePath, array $environment): void {
     require $basePath.'/vendor/autoload.php';
 
-    \Claviron\Laravel\Config\ConfigEvaluator::prepare($basePath, $environment);
+    \Lumenize\Config\ConfigEvaluator::prepare($basePath, $environment);
 };

@@ -5,8 +5,8 @@ declare(strict_types=1);
 // Real Laravel session/cache managers; no application boot, runtime or network.
 require $argv[1] ?? throw new LogicException('Supply a Composer autoloader');
 
-use Claviron\Laravel\Http\Middleware\StartNativeSession;
-use Claviron\Laravel\Providers\SessionServiceProvider;
+use Lumenize\Http\Middleware\StartNativeSession;
+use Lumenize\Providers\SessionServiceProvider;
 use Illuminate\Auth\AuthenticationException;
 use Illuminate\Cache\CacheManager;
 use Illuminate\Config\Repository;

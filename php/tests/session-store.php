@@ -5,7 +5,7 @@ declare(strict_types=1);
 // Real Laravel managers over in-memory stores; no app boot or native runtime.
 require $argv[1] ?? throw new LogicException('Supply a Composer autoloader');
 
-use Claviron\Laravel\Providers\SessionServiceProvider;
+use Lumenize\Providers\SessionServiceProvider;
 use Illuminate\Cache\CacheManager;
 use Illuminate\Config\Repository;
 use Illuminate\Foundation\Application;

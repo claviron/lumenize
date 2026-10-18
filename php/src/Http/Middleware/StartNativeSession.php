@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace Claviron\Laravel\Http\Middleware;
+namespace Lumenize\Http\Middleware;
 
 use Closure;
 use Illuminate\Auth\AuthenticationException;

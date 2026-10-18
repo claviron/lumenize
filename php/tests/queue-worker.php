@@ -5,7 +5,7 @@ declare(strict_types=1);
 // Supply an installed Laravel application's autoloader; never consume real jobs.
 require $argv[1];
 
-use Claviron\Laravel\Queue\Worker;
+use Lumenize\Queue\Worker;
 use Illuminate\Queue\Worker as LaravelWorker;
 use Illuminate\Queue\WorkerOptions;
 

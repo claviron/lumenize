@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace Claviron\Laravel\Console;
+namespace Lumenize\Console;
 
 use Illuminate\Console\Application as ConsoleApplication;
 use Illuminate\Console\Events\ScheduledTaskFinished;

@@ -2,12 +2,12 @@
 
 declare(strict_types=1);
 
-namespace Claviron\Laravel\Invocation;
+namespace Lumenize\Invocation;
 
-use Claviron\Laravel\EventBridge;
-use Claviron\Laravel\Events\InvocationCompleted;
-use Claviron\Laravel\Events\InvocationFailed;
-use Claviron\Laravel\Events\InvocationOutcome;
+use Lumenize\EventBridge;
+use Lumenize\Events\InvocationCompleted;
+use Lumenize\Events\InvocationFailed;
+use Lumenize\Events\InvocationOutcome;
 use Illuminate\Contracts\Events\Dispatcher;
 use RuntimeException;
 

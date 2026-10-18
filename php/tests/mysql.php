@@ -13,7 +13,7 @@ namespace Claviron\Runtime {
     }
 }
 
-namespace Claviron\Laravel\Database {
+namespace Lumenize\Database {
     use Illuminate\Database\Connection;
     use Illuminate\Database\DatabaseTransactionsManager;
     use Illuminate\Database\UniqueConstraintViolationException;

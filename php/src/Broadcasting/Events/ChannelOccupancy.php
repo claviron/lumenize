@@ -2,10 +2,10 @@
 
 declare(strict_types=1);
 
-namespace Claviron\Laravel\Broadcasting\Events;
+namespace Lumenize\Broadcasting\Events;
 
 use Carbon\CarbonImmutable;
-use Claviron\Laravel\Events\FleetEvent;
+use Lumenize\Events\FleetEvent;
 use UnexpectedValueException;
 
 /** A fleet-global Pusher channel occupancy transition. */

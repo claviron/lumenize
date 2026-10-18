@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace Claviron\Laravel\Database;
+namespace Lumenize\Database;
 
 use PDOException;
 use Throwable;

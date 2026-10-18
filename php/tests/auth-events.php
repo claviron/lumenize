@@ -5,8 +5,8 @@ declare(strict_types=1);
 // Pure translation contract: no Laravel application, database, queue or host.
 require $argv[1] ?? throw new RuntimeException('Pass an installed Laravel vendor/autoload.php.');
 
-use Claviron\Laravel\Auth\DispatchAuthEvent;
-use Claviron\Laravel\Auth\Events\AuthEvent;
+use Lumenize\Auth\DispatchAuthEvent;
+use Lumenize\Auth\Events\AuthEvent;
 use Illuminate\Auth\EloquentUserProvider;
 use Illuminate\Auth\Events\Login;
 use Illuminate\Auth\Events\Logout;

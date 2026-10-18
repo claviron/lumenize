@@ -2,9 +2,9 @@
 
 declare(strict_types=1);
 
-namespace Claviron\Laravel\Queue;
+namespace Lumenize\Queue;
 
-use Claviron\Laravel\EventBridge;
+use Lumenize\EventBridge;
 use RuntimeException;
 
 /** Admit one queued listener job for one fleet ApplicationEvent envelope. */

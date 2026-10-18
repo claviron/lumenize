@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace Claviron\Laravel\Broadcasting;
+namespace Lumenize\Broadcasting;
 
 use Illuminate\Broadcasting\Broadcasters\Broadcaster as IlluminateBroadcaster;
 use Illuminate\Broadcasting\Broadcasters\UsePusherChannelConventions;

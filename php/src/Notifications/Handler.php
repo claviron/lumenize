@@ -2,9 +2,9 @@
 
 declare(strict_types=1);
 
-namespace Claviron\Laravel\Notifications;
+namespace Lumenize\Notifications;
 
-use Claviron\Laravel\Invocation\Handler as InvocationHandler;
+use Lumenize\Invocation\Handler as InvocationHandler;
 use Illuminate\Contracts\Notifications\Dispatcher;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Notifications\Notification;

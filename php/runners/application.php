@@ -14,4 +14,4 @@ if (!chdir($basePath)) {
 
 require $basePath.'/vendor/autoload.php';
 
-\Claviron\Laravel\Octane\ApplicationRunner::run($basePath);
+\Lumenize\Octane\ApplicationRunner::run($basePath);

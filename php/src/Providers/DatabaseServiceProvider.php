@@ -2,10 +2,10 @@
 
 declare(strict_types=1);
 
-namespace Claviron\Laravel\Providers;
+namespace Lumenize\Providers;
 
-use Claviron\Laravel\Database\PostgresConnection;
-use Claviron\Laravel\Database\MySqlConnection;
+use Lumenize\Database\PostgresConnection;
+use Lumenize\Database\MySqlConnection;
 use Illuminate\Database\Connection;
 use Illuminate\Database\Connectors\ConnectionFactory;
 use Illuminate\Database\DatabaseManager;

@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace Claviron\Laravel\Providers;
+namespace Lumenize\Providers;
 
 use Illuminate\Support\ServiceProvider;
 

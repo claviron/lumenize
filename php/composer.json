@@ -21,25 +21,25 @@
   },
   "autoload": {
     "psr-4": {
-      "Claviron\\Laravel\\": "src/"
+      "Lumenize\\": "src/"
     }
   },
   "extra": {
     "laravel": {
       "providers": [
-        "Claviron\\Laravel\\Providers\\LumenizeProvider",
-        "Claviron\\Laravel\\Providers\\AuthServiceProvider",
-        "Claviron\\Laravel\\Providers\\BroadcastingProvider",
-        "Claviron\\Laravel\\Providers\\CacheServiceProvider",
-        "Claviron\\Laravel\\Providers\\SessionServiceProvider",
-        "Claviron\\Laravel\\Providers\\DatabaseServiceProvider",
-        "Claviron\\Laravel\\Providers\\QueueServiceProvider",
-        "Claviron\\Laravel\\Providers\\ScheduleServiceProvider",
-        "Claviron\\Laravel\\Providers\\LogServiceProvider"
+        "Lumenize\\Providers\\LumenizeProvider",
+        "Lumenize\\Providers\\AuthServiceProvider",
+        "Lumenize\\Providers\\BroadcastingProvider",
+        "Lumenize\\Providers\\CacheServiceProvider",
+        "Lumenize\\Providers\\SessionServiceProvider",
+        "Lumenize\\Providers\\DatabaseServiceProvider",
+        "Lumenize\\Providers\\QueueServiceProvider",
+        "Lumenize\\Providers\\ScheduleServiceProvider",
+        "Lumenize\\Providers\\LogServiceProvider"
       ]
     }
   },
   "suggest": {
-    "laravel/octane": "^2.0, for Claviron\\Laravel\\Octane\\ClavironClient (the application model's request client)"
+    "laravel/octane": "^2.0, for Lumenize\\Octane\\ClavironClient (the application model's request client)"
   }
 }

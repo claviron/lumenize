@@ -15,24 +15,29 @@ It depends on this library; the reverse dependency is forbidden. Core Claviron
 does not depend on either Lumenize package. A custom Edge application registers
 library adapters during its own boot and never needs the runner package.
 
-Composer identity `claviron/laravel`, PHP namespace `Claviron\Laravel`, native
-function names and event topics are unchanged. Relocation changes package
-ownership, not Laravel admission, guard, notification or financial semantics.
+PHP integration classes use `Lumenize\`; the engine's `Claviron\` classes
+remain engine-owned. Composer identity `claviron/laravel`, native function names,
+driver names and event topics are unchanged. Laravel admission, guard,
+notification and financial semantics do not change.
 
 ## Laravel service providers
 
-The Composer package's service providers live under `Claviron\Laravel\Providers`.
+The Composer package's service providers live under `Lumenize\Providers`.
 Their short class names are `AuthServiceProvider`, `BroadcastingProvider`,
 `CacheServiceProvider`, `DatabaseServiceProvider`, `LogServiceProvider`,
 `QueueServiceProvider`, `ScheduleServiceProvider` and `SessionServiceProvider`.
 `LumenizeProvider` supplies console-only configuration defaults and a config
 publishing group. The namespace carries the package identity; class names do not repeat it.
-Applications can import `Claviron\Laravel\Providers` and register
+Applications can import `Lumenize\Providers` and register
 `Providers\CacheServiceProvider::class` without colliding with their own
 application provider names. Existing driver names and registration order are
 unchanged. There are no old-name aliases: upgrade explicit registrations and
 Composer discovery metadata, and regenerate provider/config caches retaining
 old class names before restarting the consuming PHP instances.
+Drain or explicitly migrate serialized queue/invocation payloads containing
+the former integration class names before switching workers; no alias or live
+payload rewrite is introduced. Native envelope classes and topic strings are
+not renamed by this PHP namespace change.
 
 ## Laravel-authored documents read by Claviron
 
@@ -424,7 +429,7 @@ exposes the optional username for lightweight observers without a model lookup.
 PHP's `Providers\AuthServiceProvider` enables the translator only with explicit
 `auth.claviron_events = {provider, subject_key}` configuration. It does not
 subscribe every HTTP/queue instance: the consuming application's registrar
-declares `Claviron\\Laravel\\Auth\\Events\\AuthEvent`, and `invoke:serve` starts
+declares `Lumenize\\Auth\\Events\\AuthEvent`, and `invoke:serve` starts
 that catalog. `DispatchAuthEvent` resolves the subject using the
 application's named Laravel user provider and dispatches the actual native
 `Illuminate\\Auth\\Events\\Login`, `Logout`, or `Registered` object. Ordinary

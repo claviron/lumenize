@@ -2,11 +2,11 @@
 
 declare(strict_types=1);
 
-namespace Claviron\Laravel\Console;
+namespace Lumenize\Console;
 
-use Claviron\Laravel\EventBridge;
-use Claviron\Laravel\Events\InvocationCompleted;
-use Claviron\Laravel\Events\InvocationFailed;
+use Lumenize\EventBridge;
+use Lumenize\Events\InvocationCompleted;
+use Lumenize\Events\InvocationFailed;
 use Illuminate\Console\Command;
 use Illuminate\Support\Carbon;
 
@@ -78,7 +78,7 @@ final class ScheduleCommand extends Command
             // Cancellation inside `schedule:run` is not this loop's problem:
             // once any event is sub-minute that call holds the rest of the
             // minute, far longer than a `graceful_timeout`, so the exit has to
-            // be in there. `Claviron\Laravel\Console\ScheduleRunCommand`
+            // be in there. `Lumenize\Console\ScheduleRunCommand`
             // owns it.
             sleep(1);
         }

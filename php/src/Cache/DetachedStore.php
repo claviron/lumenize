@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace Claviron\Laravel\Cache;
+namespace Lumenize\Cache;
 
 use Illuminate\Contracts\Cache\Store as StoreContract;
 use RuntimeException;

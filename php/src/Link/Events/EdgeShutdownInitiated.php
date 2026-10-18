@@ -2,9 +2,9 @@
 
 declare(strict_types=1);
 
-namespace Claviron\Laravel\Link\Events;
+namespace Lumenize\Link\Events;
 
-use Claviron\Laravel\Events\FleetEvent;
+use Lumenize\Events\FleetEvent;
 
 /** The edge announced shutdown; its Link has not necessarily disconnected. */
 final class EdgeShutdownInitiated extends FleetEvent

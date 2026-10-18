@@ -2,9 +2,9 @@
 
 declare(strict_types=1);
 
-namespace Claviron\Laravel\Link\Events;
+namespace Lumenize\Link\Events;
 
-use Claviron\Laravel\Events\FleetEvent;
+use Lumenize\Events\FleetEvent;
 
 /**
  * A directly connected peer as observed in this process's Link directory.

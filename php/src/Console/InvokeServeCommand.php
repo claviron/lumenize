@@ -2,9 +2,9 @@
 
 declare(strict_types=1);
 
-namespace Claviron\Laravel\Console;
+namespace Lumenize\Console;
 
-use Claviron\Laravel\Invocation\Runner;
+use Lumenize\Invocation\Runner;
 use Illuminate\Console\Command;
 
 /**

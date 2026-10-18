@@ -1,6 +1,6 @@
 <?php
 
-namespace Claviron\Laravel\Octane;
+namespace Lumenize\Octane;
 
 use Closure;
 use Illuminate\Foundation\Application;

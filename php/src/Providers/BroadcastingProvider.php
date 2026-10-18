@@ -2,13 +2,13 @@
 
 declare(strict_types=1);
 
-namespace Claviron\Laravel\Providers;
+namespace Lumenize\Providers;
 
-use Claviron\Laravel\Broadcasting\Broadcaster;
-use Claviron\Laravel\Broadcasting\Events\ChannelOccupied;
-use Claviron\Laravel\Broadcasting\Events\ChannelVacated;
-use Claviron\Laravel\Broadcasting\UnconfiguredBroadcaster;
-use Claviron\Laravel\EventBridge;
+use Lumenize\Broadcasting\Broadcaster;
+use Lumenize\Broadcasting\Events\ChannelOccupied;
+use Lumenize\Broadcasting\Events\ChannelVacated;
+use Lumenize\Broadcasting\UnconfiguredBroadcaster;
+use Lumenize\EventBridge;
 use Illuminate\Broadcasting\BroadcastManager;
 use Illuminate\Broadcasting\Broadcasters\Broadcaster as IlluminateBroadcaster;
 use Illuminate\Support\ServiceProvider;

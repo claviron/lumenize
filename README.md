@@ -51,10 +51,15 @@ not a new authentication mechanism. Broadcasting retains the existing
 
 ## PHP integration
 
-Install the companion Composer package `claviron/laravel`. Its PHP namespace
-remains `Claviron\Laravel`; relocating its source here does not rename drivers,
-providers, serialized classes, event topics or native functions. It continues
-to consume the general `claviron/sapi` package supplied by Claviron PHP Embed.
+Install the companion Composer package `claviron/laravel`. Its PHP integration
+classes use `Lumenize\`, independently of the engine's `Claviron\` classes.
+Driver names, event topics and native functions are unchanged. The package
+continues to consume `claviron/sapi`, supplied by Claviron PHP Embed.
+
+Update imports, explicit providers and Composer discovery metadata together;
+there is no old-namespace alias. Regenerate autoload/provider/config caches and
+drain or migrate queued payloads containing the former PHP class names before
+switching running workers. Native `Claviron\Runtime` envelopes stay unchanged.
 
 Laravel owns its container, models, authorization, notifications, queues and
 request semantics. The host may run an ordinary front controller in Script

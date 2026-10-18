@@ -9,7 +9,7 @@ declare(strict_types=1);
 // loops on `claviron_application_receive()`; everything request-specific is
 // the client's, everything lifecycle-specific is the engine's.
 
-use Claviron\Laravel\Octane\ApplicationRunner;
+use Lumenize\Octane\ApplicationRunner;
 use Illuminate\Http\Request;
 
 require __DIR__.'/vendor/autoload.php';

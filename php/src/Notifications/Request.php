@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace Claviron\Laravel\Notifications;
+namespace Lumenize\Notifications;
 
 use InvalidArgumentException;
 

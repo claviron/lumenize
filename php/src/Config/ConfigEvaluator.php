@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace Claviron\Laravel\Config;
+namespace Lumenize\Config;
 
 use Illuminate\Config\Repository;
 use Illuminate\Foundation\Application;

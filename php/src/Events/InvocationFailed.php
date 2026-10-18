@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace Claviron\Laravel\Events;
+namespace Lumenize\Events;
 
 /**
  * An invoked program ended with a nonzero exit code, or died.

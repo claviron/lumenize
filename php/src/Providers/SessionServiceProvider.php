@@ -2,9 +2,9 @@
 
 declare(strict_types=1);
 
-namespace Claviron\Laravel\Providers;
+namespace Lumenize\Providers;
 
-use Claviron\Laravel\Http\Middleware\StartNativeSession;
+use Lumenize\Http\Middleware\StartNativeSession;
 use Illuminate\Cache\CacheManager;
 use Illuminate\Contracts\Foundation\Application;
 use Illuminate\Session\CacheBasedSessionHandler;

@@ -2,10 +2,10 @@
 
 declare(strict_types=1);
 
-namespace Claviron\Laravel\Providers;
+namespace Lumenize\Providers;
 
-use Claviron\Laravel\Console\WorkCommand;
-use Claviron\Laravel\Queue\Worker;
+use Lumenize\Console\WorkCommand;
+use Lumenize\Queue\Worker;
 use Illuminate\Contracts\Debug\ExceptionHandler;
 use Illuminate\Queue\Console\WorkCommand as IlluminateWorkCommand;
 use Illuminate\Queue\Worker as IlluminateWorker;

@@ -2,10 +2,10 @@
 
 declare(strict_types=1);
 
-namespace Claviron\Laravel\Console;
+namespace Lumenize\Console;
 
-use Claviron\Laravel\Events\InvocationCompleted;
-use Claviron\Laravel\Events\InvocationFailed;
+use Lumenize\Events\InvocationCompleted;
+use Lumenize\Events\InvocationFailed;
 use Illuminate\Console\Command;
 use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\Log;

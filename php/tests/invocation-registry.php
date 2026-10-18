@@ -5,13 +5,13 @@ declare(strict_types=1);
 // Standalone contract test: no application boot, native runtime, DB or mail.
 require $argv[1] ?? throw new RuntimeException('Pass the Composer autoload.php path.');
 
-use Claviron\Laravel\Auth\Events\AuthEvent;
-use Claviron\Laravel\Console\InvokeServeCommand;
-use Claviron\Laravel\Events\FleetEvent;
-use Claviron\Laravel\Invocation\Handler;
-use Claviron\Laravel\Invocation\Registrar;
-use Claviron\Laravel\Invocation\Registry;
-use Claviron\Laravel\Invocation\Runner;
+use Lumenize\Auth\Events\AuthEvent;
+use Lumenize\Console\InvokeServeCommand;
+use Lumenize\Events\FleetEvent;
+use Lumenize\Invocation\Handler;
+use Lumenize\Invocation\Registrar;
+use Lumenize\Invocation\Registry;
+use Lumenize\Invocation\Runner;
 use Illuminate\Container\Container;
 
 final class ExampleInvocationHandler implements Handler
