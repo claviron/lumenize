@@ -1,302 +1,463 @@
-# Lumenize
+# Laravel Integration Boundary
 
-## Role
+## Repository and boot ownership
 
-Lumenize is a Laravel-focused PHP runner built on Claviron. It is an
-independent library project, not the end user's application binary.
+The root `lumenize` package owns the native Laravel adapters and the Composer
+package under `php/`. It consumes only Claviron's public facade. Configuration
+and Artisan APIs are available without a serving composition; independent
+`auth` and `broadcast` features expose those integration modules. Importing or
+registering them starts no server and creates no second AppState, PHP engine,
+supervisor or listener. The host supplies existing state and services.
 
-The downstream application owns its Rust `main.rs`, binary, Laravel app,
-configuration, and application-specific providers. A starter kit may generate
-that composition in the future.
+`runner/` is the separate `lumenize-runner` package. It owns the existing
+Runner, launch/options, PHP owner, watcher and Artisan console executable.
+It depends on this library; the reverse dependency is forbidden. Core Claviron
+does not depend on either Lumenize package. A custom Edge application registers
+library adapters during its own boot and never needs the runner package.
 
-## Boundaries
+Composer identity `claviron/laravel`, PHP namespace `Claviron\Laravel`, native
+function names and event topics are unchanged. Relocation changes package
+ownership, not Laravel admission, guard, notification or financial semantics.
 
-- Consume the runner shell directly through `claviron-runner`; select its
-  own features. The Claviron facade still supplies server lifecycle, PHP and
-  Laravel integration. Neither runner nor facade selects an edge implicitly.
-- Compose the existing PHP runner and embedded PHP extension mechanisms;
-  do not introduce a second PHP engine or supervisor.
-- Shared Laravel integration stays in Claviron and remains usable without
-  Lumenize. Only runner-specific composition and future starter tooling belong
-  here; application-specific host extensions belong to the downstream app.
-- Edge, upstream transport, and additional language runtimes are optional
-  composition choices, not mandatory dependencies of every application.
-- Providers register definitions without resolving dependencies during
-  registration. Resolve dependencies in boot; long-running services implement
-  the runtime's Runnable contract and observe its shutdown signal.
-- Worker supervision and fleet-scoped Orbit state use Claviron's existing
-  contracts. Do not invent a separate process or shared-state lifecycle.
+## Laravel service providers
 
-## Current state
+The Composer package's service providers live under `Claviron\Laravel\Providers`.
+Their short class names are `AuthServiceProvider`, `BroadcastingProvider`,
+`CacheServiceProvider`, `DatabaseServiceProvider`, `LogServiceProvider`,
+`QueueServiceProvider`, `ScheduleServiceProvider` and `SessionServiceProvider`.
+`LumenizeProvider` supplies console-only configuration defaults and a config
+publishing group. The namespace carries the package identity; class names do not repeat it.
+Applications can import `Claviron\Laravel\Providers` and register
+`Providers\CacheServiceProvider::class` without colliding with their own
+application provider names. Existing driver names and registration order are
+unchanged. There are no old-name aliases: upgrade explicit registrations and
+Composer discovery metadata, and regenerate provider/config caches retaining
+old class names before restarting the consuming PHP instances.
 
-The hosted Application reports PHP runtime, Lumenize runner and the selected
-request mode through Claviron's common description. Frameworks are optional,
-free-form informational tags declared by `frameworks` in the launch/CLI or an
-explicit `php.application.frameworks`; an absent list is detected through
-Composer when recognized. An explicit empty list suppresses detection; scalar
-`framework` remains a single-label shorthand. Optional `icon` is a client-owned
-presentation code, not an execution selector. An omitted icon resolves to
-`laravel` before launch serialization; explicit codes are preserved.
+## Laravel-authored documents read by Claviron
 
-`request_mode` selects the actual PHP adapter, not just its label.
-Without a selection, Composer's `laravel/octane` selects application mode and
-its absence selects script mode. `with_request_mode` overrides YAML independent
-of builder order. Resolution happens before launch serialization; workers
-inherit the choice. Installed Composer records take precedence over the lockfile
-and root runtime requirements. No HTTP request performs detection.
-TCP/UDS/Orbit are ingress methods, independent of this introduction.
+`congif::LaravelConfigParser` implements the external Congif parser contract
+for `.php` documents. These are Claviron inputs written with Laravel helpers,
+**not Laravel's own config repository**. Laravel keeps loading its config as usual.
+Register the parser on a ConfigReader and declare `Format::Custom("php")` on
+the consuming owner; Congif owns file reads, typed decode, validation, equality,
+publication and source watching, exactly as with YAML/JSON.
 
-The fluent builder accepts `with_config_path`, `with_fleet_name`, typed
-`with_services::<(ServiceA, ServiceB)>()`, and `with_bootstrap` callbacks.
-The Axum surface exposes Claviron HTTP's `Routable`. Its
-`routes(self: Arc<Self>, &AppState)` receives the registered shared instance,
-so application handlers may capture it without a second registry lookup or
-an Axum state/extension just to access their provider. Registration still
-passes an Arc and the result remains `Option<Router<AppState>>`.
-Services implement Continuo's `Register<AppState>`, re-exported through Claviron
-runtime and Lumenize; Lumenize does not invent
-a lifecycle trait or construct them with an implicit `Default` requirement.
-Registration callbacks run in builder order before boot; `run()` starts the
-composition. `with_interceptor` builds its selected router after
-all application registrations, so registered Routable contributions are visible
-regardless of builder call order. A subsequent interceptor replaces the prior
-selection; it does not register a duplicate application service.
+`congif::LaravelConfigProvider` implements `Register<AppState>` for the standard
+host composition. `LaravelConfigProvider::register(state)` takes the application
+root from the process's current working directory and registers the parser with
+the existing 64-level returned-array nesting bound. It is registration-only:
+no runnable or empty lifecycle instance is inserted, and no PHP is evaluated.
+Register it before configuration preparation, after declaring process INI.
+The parser remains independently constructible for custom runner/evaluator or
+nesting policies; it does not implement the runtime Provider trait.
 
-The initial `Runner` API composes Claviron's standalone `Server`, one named
-PHP application in either request mode and TCP/Unix-socket and/or Orbit ingress. `Options`
-loads `lumenize.yaml`; the optional `cli` feature adds application-owned argv
-parsing. No edge preset or additional language engine is selected.
+The Composer package ships `runners/config.php`. It loads the consumer's
+autoload and prepares a minimal Illuminate Application/helper container, then
+the native evaluator executes Congif's pinned source bytes with the original
+filename. It does not load `bootstrap/app.php`, Laravel configuration files,
+service providers, a database or the Octane loop. `Str`, `env`, `app` and
+`base_path` are available; a facade requiring a booted provider is not promised.
+No extra runner is copied/published into the application root.
 
-The runner loads one launch document; the application's registration callback owns Rust
-providers and services and calls `lumenize::register_router(state, routes::router)`
-with a `FnOnce(AppState) -> Router` builder. The registered service uses PHP as
-the fallback for undeclared paths and methods. `register_router_with` instead
-hands the builder the shell's `Owner` and registers its Tower service unchanged;
-the application decides where PHP belongs. Both registrations use one provider
-type, so duplicate registrations fail. `Application` resolves and binds the
-shared PHP adapter in boot and validates the selected PHP name
-against the completed catalog before any runnable starts. A matching Rust
-handler's response is authoritative, including 404. Request and response guards
-surround both Rust and PHP dispatch. Provider boot contributions are supported.
-No PHP package migration or starter generator is implemented.
+`runners/application.php` is the optional package-shipped Octane HTTP entry.
+It loads the consumer's autoloader from its first argument and enters
+`Octane\ApplicationRunner`; it neither evaluates configuration nor runs Artisan.
+Lumenize can use it when application mode has no explicit entry and no local
+`application.php`. Script mode retains the consumer's normal `public/index.php`.
+The host pins the project root in that argument before launch serialization,
+so PHP changing its virtual cwd to the package entry cannot change the root.
 
-## Native HTTP benchmarks
+Congif's variables enter `env()` through the pinned `$_ENV`/`$_SERVER` maps,
+with Laravel's ordinary boolean/null/default interpretation. PHP source is
+never text-interpolated. A new evaluation has a fresh Zend scope; only owned
+Rust values leave it, with no JSON round-trip. PHP lists become sequences and
+associative/sparse arrays become maps; empty arrays are sequences. Objects,
+resources, recursive arrays and values beyond the caller's declared nesting
+limit fail. These are trusted executable documents, not a security sandbox.
 
-The opt-in `bench` feature forwards to Claviron's benchmark capability and
-installs `claviron::bench::runner::BenchService` using the existing
-host-free `Register`/`Component`/`Routable` contracts after the routing registry
-is declared and before application interception is composed. It owns no listener,
-PHP context, Runnable, lease, configuration source or management loop. The same
-native routes work across TCP, UDS and Orbit, including applications without an
-explicit interceptor. The shared benchmark format is `/_bench/rust` (GET/POST,
-request-declared delay and payload, `x-received`) and `/_bench/stats`
-(process-local activity). Framework-specific benchmark scripts remain
-application-owned; a custom raw service composes the router explicitly.
-All native handlers live in `claviron-bench`, not this crate. `bench::routes`
-and `bench::BenchService` remain compatibility exports. The shared plain,
-JSON and streaming echo workloads are available under `/bench` as well.
+Evaluation may run during preparation before any provider's `configure`/`boot`.
+Declare the one process's PHP INI options and all host extensions during cold
+composition before the first evaluation. It shares PHP's native SAPI with
+hosted execution rather than booting a second engine. No HTTP runtime or
+AppState is required by the evaluation API. The helper-only regression takes
+an installed autoloader: `php php/tests/config-evaluator.php /path/to/vendor/autoload.php`.
+Native engine execution belongs in an external executable harness, not this
+library's Cargo test suite.
 
-## Downstream repository contract
+## Lumenize console executable
 
-An application can keep Composer and Cargo in one repository. Its PHP source
-layout and autoload mappings are independent of Cargo's target paths: the
-application may name a root `main.rs` explicitly and keep `src/` for PHP.
-Application domain crates may become members of its own Cargo workspace as
-capabilities are implemented. Lumenize remains an external library dependency,
-not the parent workspace or the owner of those domain crates.
+`runner/src/bin/lumenize.rs` is the `lumenize-runner` package's console binary. Its
+default behavior is to launch local Artisan commands. It uses
+`php-embed::console::PhpConsole`, not the facade's server feature, an HTTP
+listener, TaskService or an invocation command. Run it from the Laravel
+application root with ordinary Artisan arguments. It executes the application's
+own `./artisan` file in the native engine, preserving its bootstrap, custom
+preparation and command registration. Rust does not bypass it with a package
+runner or duplicate Laravel boot. The application's entry owns autoloading,
+dependencies, kernel termination and any application-specific host setup.
 
-The first acceptance path uses a real downstream Laravel application with its
-existing persistent entry. Private application profiles, credentials, payment
-logic and operator configuration never become library fixtures or generated
-starter defaults. A future isolated smoke fixture should contain only the
-minimum generic Laravel behavior it tests.
+Before PHP starts, the entry checks only that `./artisan` is a file. If absent,
+it reports that no Laravel application was found here and exits with failure.
+No Composer package is required by the launcher or installed automatically.
 
-## PHP composition contract
+The binary preserves literal UTF-8 arguments and the caller's environment,
+declares `APP_RUNNING_IN_CONSOLE=true` for the non-CLI SAPI, and inherits the
+terminal streams. Ctrl-C signals the owned execution's cancellation token;
+completion still joins its PHP thread. This is cooperative cancellation, not
+permission to kill foreign blocking work. PHP INI selection remains process-owned.
 
-The application owns the binary and registration callback. The runner composes
-a Claviron server, invokes the callback, and registers its ingress providers.
-Claviron owns boot, admission, runnable generations, drain and finalize. The
-runner must not introduce an independent lifecycle or supervise PHP itself.
+Build/install it with `cargo install --path runner --features cli --bin lumenize`,
+or build `lumenize-runner` with its `cli` feature. The root library has no binary.
+The first standalone entry does not load runtime YAML, bind native DB/cache
+services or attach to Orbit. Laravel can use its ordinary PHP/PDO drivers;
+explicit native driver configuration still fails closed without prepared host
+capabilities. `--live` is not implemented and no implicit fleet is joined.
+Compiled framework-neutral host functions remain available through the SAPI;
+runtime-backed operations do not become ready merely because their functions exist.
 
-Persistent Laravel execution uses the shared PHP application receive/respond
-loop and Octane operation isolation. Script execution uses the existing SAPI
-request pool and `PhpScriptAdapter`, with `public/index.php` as its default
-front controller. `php.script` reuses the public `PhpConfig` route type;
-the optional `php.sapi` uses the same engine pool schema as the edge.
-Each persistent context has a fixed profile
-environment, established before Laravel loads cached configuration; no request
-changes the process environment to select another application.
+## Console configuration declaration
 
-PHP execution capacity and process supervision are separate choices. A Python
-interpreter's virtual-environment restrictions are not a PHP deployment policy.
+`Providers\LumenizeProvider` is included in Composer discovery. Its registration
+and boot methods are no-ops outside console execution, including HTTP under
+the embedded SAPI. Console registration merges the package's `config/lumenize.php`
+into Laravel's `lumenize` repository key; application values take precedence and
+Laravel's configuration cache remains authoritative. The default `config_path`
+is `lumenize.yaml`, a document path relative to the application's working
+directory. It is not resolved against the package or compiled binary location.
 
-## Serving compositions
+Console boot exposes `lumenize-config` for publishing to the application's
+`config/lumenize.php`. Consumers disabling package discovery explicitly register
+the provider. No file needs to be published to use defaults. This is a declaration
+boundary only: it does not read YAML, prepare DB/cache services, subscribe to
+events or join Orbit. Runtime preparation and project-owned binary composition
+remain separate future work. The isolated check is
+`php php/tests/lumenize-provider.php /path/to/vendor/autoload.php`.
 
-The roadmap has four deployment shapes around the same PHP/Laravel
-execution boundary. These describe responsibilities, not four separate engines
-or a commitment to a mutually exclusive configuration enum.
+## Native request authentication
 
-| Composition | Request ingress | Vhost owner |
-| --- | --- | --- |
-| Development server | Application-local HTTP listener for development | No multi-vhost edge configuration |
-| Orbit application | A separate edge sends exchanges over the shared-memory transport | The separate edge |
-| Socket upstream application | A separate edge proxies HTTP over TCP or a Unix socket | The separate edge |
-| Embedded edge | The application binary composes Claviron's listeners, TLS, virtual hosts, routes and static files | The application binary |
+`Providers\AuthServiceProvider` registers the opt-in `claviron` auth guard.
+The application selects a Laravel user provider implementing `NativeUserProvider`.
+`Auth\\FleetSession` hydrates its `Authenticatable` from `claviron_auth()`; Laravel retains
+authorization/Gates and model hydration. PHP neither validates credentials nor
+calls the session server over HTTP. Missing native support fails closed.
 
-Serving as an upstream is the application's ingress role. It is distinct from
-enabling Claviron's reverse-upstream capability to proxy an outgoing route to
-another application. Orbit streams provide the bounded body transport; the
-shared exchange protocol also carries addressing and request/response metadata.
-The runner must use that protocol rather than create a PHP-specific wire format.
+The host binds `php-embed::auth::PhpRequestAuthenticator`. It owns credential
+extraction, audience/purpose, lazy user lookup and session activity policy.
+Rust loads the user once, or reuses an `AuthenticatedSession` already attached
+to this request. The provided `Auth\\EloquentUserProvider` hydrates the configured
+application model using `newFromBuilder`: casts, hidden fields, originals and
+model events retain Eloquent semantics, without another query. Applications
+can extend this provider or implement the hydration contract themselves.
+`subject_key` maps the verified subject to a raw attribute; optional
+application-owned `constraints` (for example active status) are checked locally.
+Without `subject_key`, the hydrated model's auth identifier is checked. A
+provider without the native hydration contract fails rather than doing a second
+lookup. The native function returns subject, optional session_id, credential
+expires_at and raw model attributes, never a raw token or mutable session.
+Attributes are internal hydration data, not a public response serializer.
+Script Parts and
+application Jobs own the cached verified result; task/event/idle executions
+return null. Live revocation and expiry are rechecked on every native read.
+There is no process-wide PHP token-to-user cache.
+`FleetSessionGuard::setRequest` also forgets Laravel's hydrated user when its
+container receives another request. The isolated PHP adapter regression is
+`php php/tests/fleet-session.php /path/to/vendor/autoload.php`; it boots no
+application and substitutes only the native identity function.
 
-The initial implementation exercises a PHP application behind a separate edge.
-An application-owned multi-vhost edge remains a downstream requirement. Vhost and
-edge routing policy belong only to the edge composition. An application served
-behind another edge does not inherit that edge's vhost configuration.
+## Native broadcasting
 
-These serving shapes are independent of standalone/master/worker process roles,
-supervisor policy, Laravel profile selection, and Cargo debug/release profiles.
-Selecting an ingress does not create a second process lifecycle. The development,
-socket-upstream and Orbit compositions are implemented. The embedded edge
-composition remains planned. Supervised master/worker mode uses the shared
-supervisor and is selected by `workers`.
+`broadcast` replaces Laravel's server-side Pusher HTTP publication with
+one compiled-in PHP function:
 
-## Shared foundations
+```php
+claviron_laravel_broadcast($key, $channels, $event, $jsonData, $socketId);
+```
 
-- Continuo owns the typed process-local registry and live runnable generations.
-  Providers resolve the same registered instances, declare lifecycle ordering,
-  and drain their accepted work before reverse-order finalization. Lumenize
-  reaches this contract through Claviron's runtime facade.
-- Orbitive supplies bounded same-host memory primitives: history rings,
-  current-state tables and duplex streams. It does not own application boot,
-  language execution, supervision or liveness policy. Claviron's Orbit layer
-  connects these primitives to the runtime and the application transport.
-- Claviron's `runtime`, `server`, `supervisor` and `edge` capabilities are
-  distinct composition levels. Use the level each serving shape needs rather
-  than forcing every runner to boot edge services.
-- Cross-host federation is future work in Orbitive's vision, not an existing
-  property of the same-host transport. Multiple HTTP virtual hosts in an edge
-  application do not imply cross-machine shared memory.
+Rust's `broadcast` module owns the extension, registration, native handler and
+publication context. `broadcast::LaravelBroadcastProvider` implements
+`Register<AppState>` and installs `broadcast::BroadcastExtension` on serving
+processes without a fixed application name. The crate root declares modules
+without generic extension or registration aliases. This extension is named
+`claviron-laravel-broadcast` and registers only `claviron_laravel_broadcast`.
+Authentication, configuration evaluation and console execution remain separate
+integration surfaces.
 
-## Configuration boundary
+The Rust extension resolves the worker-local `BroadcastService` during Claviron
+registration. PHP supplies the key from its selected Laravel broadcast connection;
+Laravel's ordinary default/explicit connection selection remains unchanged.
+`BroadcastService::publish_by_key` resolves the application in the existing
+catalog, rejecting unknown keys without fallback or logging the key. The native
+extension retains only the service, not an application identity or another catalog.
+It is a trusted in-process publisher, not the external REST authentication API.
+A call validates the Pusher limits and publishes directly into
+Broadcast's dedicated multi-chunk Orbit ring. It performs no DNS lookup, TLS
+handshake, HTTP request, or loopback socket connection.
 
-`lumenize.yaml` is the typed composition entry. Reuse the runtime's
-public configuration types and loading contracts. Laravel's PHP configuration
-continues to own routes, middleware, authentication and business settings;
-booting Laravel to discover Rust boot dependencies would reverse that order.
-PHP YAML parsing and environment resolution stay in Claviron; Lumenize does not
-maintain a second PHP schema.
+The PHP package registers a normal Laravel broadcast driver named `claviron`.
+It retains Laravel's channel authorization contract and produces
+Pusher-compatible private and presence HMAC responses for `/broadcasting/auth`.
+Only the server-side `broadcast()` transport changes. Echo and PusherJS clients
+continue to use the standard Pusher WebSocket protocol.
+When the key or secret is missing, driver resolution still permits channel
+registration during Composer discovery, but does not construct the credentialed
+broadcaster. Authentication and publication then fail with a configuration error.
 
-`Options.config_path` selects one file (default `lumenize.yaml`); there is no
-public `config_dir` option. The runner sets `AppState::config_dir()` to the
-selected file's parent directory (`.` for a bare filename). Application-owned
-configuration sources use this state value; PHP paths remain relative to the
-application's working directory. Workers inherit the same configuration directory.
-The flat common runner keys sit beside `php`,
-`broadcasting`, `logging`, `cache`, `database`, and `config_parser`. They include
-`assets: [build, images]` and opt-in `try_files` (default false).
-With the `files` feature, these use the shell's existing static mounts and
-public-file probe; they create no separate asset configuration or service.
-`php.application` supplies one application whose
-name is `Runner::new(...)`, without a repeated application catalog key.
-The existing embed schema validates that section. Omitted `script_path` selects
-the project's `application.php` when present, otherwise the package-shipped
-Octane entry. Script mode has no persistent application definition; the embed
-runtime names its sole request pool through `script_application` and reports its
-real lifecycle through the same PHP controller. Its commands use the existing
-ServiceManager for `PhpSapiService`; there is no second pool or lifecycle manager.
-Unselected entry sections are rejected rather than ignored. `broadcasting` is the existing
-single application's catalog entry, with its ID defaulting to the application
-name; its key and secret remain explicit. `logging.path` is a single system-log
-shorthand, or `logging.system_log` and `logging.channels` use the existing
-logging policies. There is no Edge access-log registration here.
+The native function's key argument is required. Deploy the matching PHP package
+and rebuilt host together and restart PHP contexts; there is no old-signature
+compatibility path that silently targets a default application.
 
-Native PHP broadcasting is installed through Claviron's
-`LaravelBroadcastProvider::register(state)`, without a fixed publisher identity.
-PHP sends its selected Laravel connection's key; Broadcast resolves the existing
-catalog application. Laravel default/explicit connection selection stays PHP-owned.
-The matching PHP package and host must be deployed together when the native
-function signature changes.
+The generic Pusher REST endpoint remains an independent compatibility surface
+for external publishers. It is not the native Laravel driver's transport.
 
-The runner always installs `LaravelConfigParser` on the shared ConfigReader
-after declaring the process PHP INI and before any configuration preparation.
-Owners can use `Format::Custom("php")` for returned PHP arrays, including
-Laravel helper calls, with no application-local parser registration. The package
-runner at `vendor/claviron/laravel/runners/config.php` uses the consumer's Composer
-autoload; evaluation does not boot its HTTP loop or Laravel service providers.
-`config_parser.max_depth` bounds returned array nesting (default 64).
+## Framework logging adapter
 
-`cache` reuses Claviron's `CacheConfig` store/driver schema. Omission or an empty
-section creates no stores, without consulting `cache.yaml`. The cache registers
-before default composition and builds after all custom driver registrations,
-before cache-dependent services boot. It is immutable launch intent like PHP;
-changes require process restart.
+The PHP package's log provider registers the `claviron` Monolog driver on
+Laravel's application-owned `LogManager`. Lightweight containers such as
+Lumen, which bind that manager only as `LoggerInterface`, call
+`Providers\LogServiceProvider::registerDriver()` with their existing singleton;
+they do not construct a second manager. Outside the embedded runtime the
+application keeps its ordinary file channel and never resolves the native
+handler.
 
-`database` reuses Claviron's existing `DbFileConfig` and is selected through
-`postgres`, `mysql` or `sqlite` (each enables `db`). Unresolved YAML remains in
-the inherited launch just like other runtime sections; each process expands
-it against its own boot environment and passes the typed value to
-`claviron::db::register_with_config` in the definitions phase. This suppresses
-the server's separate `db.yaml` registration. `DbService` builds process-local
-pools in ordered boot before the PHP runtime resolves its DB dependency.
-Omission creates no native connections. These options are immutable launch
-intent, not a config watcher/reload owner or an edge pool. Native PostgreSQL
-and MySQL PHP bridges use those runner pools; SQLite is a native Rust pool
-capability, not an additional PHP database adapter. A configured but unselected
-backend is refused rather than silently ignored.
+## Persistent application entry
 
-Explicit definitions are installed through `Server::with_definitions` before
-built-in defaults; those defaults retain the supplied PHP runtime, broadcast
-catalog and log channels without opening separate files. Ordinary application
-registrations still run after built-in registration. Runtime sections are
-immutable boot intent and require restart after changes. Source watching remains
-the separate PHP-source restart API.
+`Octane\ApplicationRunner` owns the receive/request/event/terminate loop.
+The consumer loads Composer and calls `run(basePath: ..., requestClass: ...)`;
+the optional request class extends Illuminate's Request. It may also be a closure
+receiving the already-booted Laravel application and returning that class. The
+runner resolves and validates it once before admission, inside the worker's
+termination boundary. The client constructs the selected class directly;
+there is no intermediate Request conversion or second application boot.
+Application paths are explicit, never inferred from the package's `__DIR__` or
+the process cwd.
+The entry may live outside the public document root. Runtime receive ending
+or the Octane client stopping ends admission; the worker then terminates.
+Worker failures retain their original exception at the native host boundary.
+Consumers still own their bootstrap, profiles, providers and authentication.
 
-The launch's supervisor policy is also installed in this definitions phase,
-before Claviron constructs its supervisor consumers. An omitted `supervisor`
-section uses the supervisor's existing defaults. Installing that source later
-would disable file preparation without initializing the consumers' supplied
-snapshots; supervised launches must never enter that state.
+## Native MySQL database adapter
 
-The CLI's `--config-path` selects the file and its runner flags override written
-values. `Runner::new(...)` supplies the default instance name; `fleet_name` and
-`--fleet-name` independently select the process-family namespace. A worker
-inherits the launch and file identity rather than reopening a default file.
-Unresolved environment expressions travel unchanged and use each process's
-prepared boot environment; resolved secrets are not copied into the launch.
+`Providers\DatabaseServiceProvider` recognizes `claviron: true` or a named pool
+on Laravel `mysql` connections. Ordinary CLI/Artisan uses Laravel's PDO factory;
+inside Claviron, opting in requires the native `mysql` feature and fails closed
+if it is missing. `Database\MySqlConnection` owns Laravel grammar, query events,
+Eloquent hydration, insert IDs, savepoints, transaction callbacks and retry
+policy. `php-embed` owns the actual request lease. No copy belongs in a consumer.
+The connection's Laravel name is preserved so model writes remain in its
+transaction. Ambiguous commit failures are propagated, never automatically
+replayed. MySQL errno and SQLSTATE survive the PHP exception boundary.
 
-Process identity, Laravel profile identity and Orbit fleet identity have
-different owners. Fleet validation and transport protocol changes must land in
-the common runtime before a downstream launch depends on them. Do not assign
-new ring kinds or copy the transport into the runner to create isolation.
+Connection/session options come from the named `db.yaml` pool, not Laravel's
+PDO options: match charset, collation, timezone and SQL mode before opting a
+consumer in. Decimal results remain strings. The first MySQL implementation
+buffers `cursor()` like PDO MySQL's default; multiple result sets are rejected.
+It closes its session at each work-unit boundary rather than claiming reusable
+pool reset, which SQLx currently does not expose. DDL has MySQL's usual implicit
+commit semantics and must stay out of cashier transactions.
 
-## The runner shell
+The consumer-independent adapter test takes an installed Laravel autoloader:
+`php php/tests/mysql.php /path/to/vendor/autoload.php`. It substitutes only the
+native boundary; it does not replace a real embedded MySQL integration test.
 
-Everything a runner does alike is Claviron's runner shell (`claviron_runner`,
-`crates/runner` in Claviron): the TCP/Unix socket ingress (HTTP/1 and HTTP/2,
-TLS, upgrades, trusted forwarding headers), the Orbit ingress, the guards and
-admission, the routing order, static mounts, broadcasting, source watching,
-the launch's shared options and the workers. Its own `ARCHITECTURE.md` is
-where they are described; the same code serves the Python runner.
+## Native PostgreSQL operation cleanup
 
-What Lumenize adds is the owner and what is Laravel's:
+`Database\PostgresConnection::disconnect()` releases the thread's native lease
+through `claviron_postgres_disconnect`, clears Laravel's nesting count and
+discards abandoned transaction callbacks. It retains the parent's no-PDO
+sentinel: inherited PDO disconnect/reconnect must not reset the PHP count
+after the next handler has opened its native transaction. Native request
+cleanup and explicit disconnect are idempotent; neither commits abandoned work.
+The next statement leases a connection from the pool without PDO reconnection.
 
-- **The owner** is the launch's PHP application, bound when PHP boots
-  (`PhpOwner`); it answers what the routes, files and broadcasting in front
-  of it did not claim. Its Orbit lane says `php`.
-- **Options** are one flat `lumenize.yaml`: the runner's shared keys beside
-  Lumenize's own `php`, `broadcasting` and `logging` sections.
-- **Broadcasting** from PHP: `broadcasting` registers Claviron's
-  native Laravel publisher; the Pusher endpoints themselves are the shell's.
-- **Watching** takes Laravel's source directories and restarts the PHP
-  application in its process once it has started. It refuses workers: with
-  them each worker has its own application and the watching master has none.
-- **Workers** come from the shell with `workers:`; each worker boots its own
-  PHP and takes its own lane, and receives the master's resolved launch, since
-  it starts with no command line.
+`php php/tests/postgres.php /path/to/vendor/autoload.php` pins the
+disconnect → begin → first-query regression using Laravel's real query and
+transaction pipelines with a substituted native boundary. It also checks
+savepoints, commit callbacks and repeated operation cleanup without a database.
 
-Orbit launches obtain Link connection observations and hosted-application
-management from the shell's `launch::register_doors`; Lumenize registers no
-duplicate command bridge. The shared PHP engine's `ApplicationController`
-remains authoritative for start/stop/restart and lifecycle snapshots. Stopping
-the PHP application does not stop its runner or disconnect its Link lane.
+Standalone embedded execution uses the same declared cache fallback and PDO
+paths as ordinary PHP. Cache and database adapters check
+`claviron_runtime_configured()` before choosing host-owned native services;
+the engine-presence marker alone cannot select a prepared host. Once host
+bindings are prepared, missing native features or resources still fail explicitly.
+
+## Cache-backed sessions
+
+The PHP package registers a Laravel session driver named `claviron`. It is a
+thin adapter around Laravel's `CacheBasedSessionHandler` and a configured
+Claviron cache repository; there is no second session store in this crate.
+An explicit `session.store` selects that Laravel cache store. When absent or
+empty, the provider lets CacheManager select the configured `cache.default`;
+the `claviron` driver name never implies a cache store with that name.
+
+`Http\Middleware\StartNativeSession` is the opt-in native identity binding,
+registered as `native.session:<data-namespace>`. It consumes `claviron_auth()`
+from this request, never parses credentials or chooses another guard. The host
+remains responsible for admission, user policy, expiry and revocation. A live
+native session ID and credential expiry are required; anonymous requests fail
+unless an application subclass explicitly allows a transient login form.
+
+The namespace and native ID derive Laravel's data ID. It is not another auth
+credential and is never recovered from a client cookie. A selected
+`session.store` is honored, otherwise data uses `cache.default`. Remaining
+native credential life bounds writes, recomputed after the handler. No Laravel
+session cookie is emitted and Laravel data-ID regeneration cannot detach the
+payload from its native session. Reusable middleware resets its native binding
+after each request; each data load clears the previous PHP attributes.
+
+Laravel still owns session serialization and flash aging. The default payload
+is PHP serialization, not a cross-language native session map. Applications
+may choose Laravel's built-in JSON serialization, but cross-language writers
+must also coordinate payload updates and the `_flash` lifecycle; registering
+this middleware alone does not provide Rust flash access. Application-specific
+CSRF token sources, audit metadata and obsolete-cookie cleanup belong in the
+consumer, not this shared binding. The isolated regression is
+`php php/tests/native-session.php /path/to/vendor/autoload.php`.
+
+A `claviron` cache store may name another Laravel store as `fallback`. The
+provider resolves that store when the PHP process is not attached to a
+Claviron runtime, so ordinary Artisan and test processes can retain real cache
+semantics without baking runtime detection into cached application config.
+Without an explicit fallback the existing detached, fail-closed store remains
+the default. A store cannot fall back to itself.
+
+The named cache store determines the runtime behavior. In the full runtime a
+dedicated Orbit store can use fleet-local L1 state with a Redis L2, while its
+Laravel cache repository also supplies Orbit locks for Laravel's optional
+per-session request blocking. Session expiry remains Laravel's ordinary cache
+TTL contract, and garbage collection is consequently a no-op.
+
+## Scheduled background commands
+
+The schedule provider keeps Laravel's ordinary `schedule:run` contract but
+replaces an opted-in `runInBackground()` subprocess with
+`orbit_invoke('claviron.php.program.invoke.v1', ...)` when the primitive is
+available. Its payload declares `kind=job`, the absolute Artisan path, literal
+arguments and console environment. The returned invocation ID is correlation,
+not an acknowledgement that the command ran.
+
+`php-embed` decodes and executes that payload; this crate only maps
+Laravel scheduling intent into it. `errand:run` observes the invocation ID plus
+submission/admission timestamps, owns the Orbit overlap lock, executes the
+command, and performs Laravel's `schedule:finish` callbacks. A publication
+failure falls back to Laravel's original subprocess path.
+
+## Event and invocation task consumer
+
+`Link\LinkSubscriber` is the opt-in observer for direct Link connections,
+departures and edge shutdown announcements. `Link\Events\EdgeConnected` and
+`ApplicationConnected` come from this process's transport directory, once per
+observed opposite-side lane. They are local notices, never questions or replies
+broadcast to other workers or other linked applications. Fleet names identify
+the Link segment; roles identify the transport, and an unknown PID stays null.
+The former `TransponderQuery` / `TransponderReply` classes and subscriptions
+are removed; consumers use the direct connection classes instead.
+Registering the subscriber in the application's
+event provider's `$subscribe` also receives
+`Link\Events\EdgeShutdownInitiated` and logs the edge, fleet and application.
+The announcement is local to the receiving process and does not by itself
+stop PHP; the runner owns its separate edge shutdown policy.
+
+`EventBridge::available()` uses the native event-readiness probe, not the
+engine-presence marker. Detached console boot therefore does not start event
+subscriptions merely because Claviron's functions are registered. A configured
+host retains its existing subscriptions; operations requiring that host still
+fail explicitly if it is unavailable.
+
+`Invocation\Runner` runs in the existing PHP TaskService execution. Its
+`claviron_task_receive()` native wait multiplexes event and invocation input
+with cancellation, without the former one-second invocation timeout loop.
+`invoke:serve` has no handler, event or budget arguments. The application's
+`config/claviron.php` selects `invocations.registrars` and `invocations.budget`
+(seconds per operation, zero retains the unbounded policy). Each registrar
+implements `Invocation\Registrar::register(Invocation\Registry)` and declares
+handlers with `handler(Class::class)` and inbound events with `event(Class::class)`.
+Declarations do not instantiate handlers, open subscriptions or start loops.
+The catalog validates all classes, rejects conflicting event-topic decoders,
+deduplicates repeated declarations and seals registrations before serving.
+An incoming operation cannot instantiate a class outside this catalog.
+
+The catalog belongs to one application container. Profile selection belongs
+to the application's config, not a library-wide `APP_PROFILE` convention;
+select it before framework boot and use that profile's config cache. Only the
+serving task subscribes. Loading the provider for HTTP, queue or scheduler
+execution does not start an invocation consumer. An empty catalog rejects
+serving rather than silently waiting for nothing. Handlers are resolved from
+the container per invocation. EventBridge dispatches native events through
+Laravel's existing listeners; invocations retain correlated completed/failed outcomes.
+Subscriptions are bounded and start at the current head, not a durable queue.
+Events have no invocation outcome. A listener may enqueue work using Laravel's
+ordinary `ShouldQueue` contract. The queue worker remains a separate consumer.
+
+`Notifications\Request` is a versioned array contract with an application-owned
+notification name, recipient reference and data. `Notifications\Handler`
+implements the existing invocation interface. The application subclasses it to
+resolve recipients, enforce domain policy and construct allowed Notification
+objects; wire data never chooses arbitrary PHP classes. Laravel's notification
+dispatcher owns `via()`, queued versus synchronous delivery, mail, database and
+broadcast channels. Broadcast uses the existing native driver back into Rust,
+not HTTP. The result distinguishes `queued` from `dispatched`; neither means
+browser or SMTP receipt, and neither exposes a general queue job ID. Errors
+propagate into the existing invocation failure outcome. No domain table, user
+model, notification registry, new fleet protocol or additional daemon is added.
+
+## Native Laravel auth lifecycle bridge
+
+Rust `auth::register` listens to Claviron Auth's `AuthEvent` only when selected
+by the host and converts it to `claviron.auth.event.v1` ApplicationEvent frames.
+The host supplies ApplicationEvent fleet transport and one PHP event-consuming
+task. This is a bounded event stream, not durable queue admission or replay.
+There is no HTTP call or reverse auth relay.
+
+Successful logins may carry a host-supplied `LoginContext` from the user and
+request already authenticated. The shared, targetless payload adds `username`,
+`name`, UTC RFC3339 `occurred_at`, and nullable `ip` and browser/device UUID
+`identity`. These are login-time facts, not current authorization state. No
+extra lookup is needed to build them, and no credentials, session tokens or raw
+cookies are exposed. JavaScript subscribers receive the same JSON through the
+ordinary ApplicationEvent bridge; they need no auth-specific transport. The
+additive fields keep the v1 topic and older context-free payloads valid.
+Logout may also carry `username` from the host's existing user lookup; the
+field is omitted when that user is unavailable. The PHP transport decoder
+exposes the optional username for lightweight observers without a model lookup.
+
+PHP's `Providers\AuthServiceProvider` enables the translator only with explicit
+`auth.claviron_events = {provider, subject_key}` configuration. It does not
+subscribe every HTTP/queue instance: the consuming application's registrar
+declares `Claviron\\Laravel\\Auth\\Events\\AuthEvent`, and `invoke:serve` starts
+that catalog. `DispatchAuthEvent` resolves the subject using the
+application's named Laravel user provider and dispatches the actual native
+`Illuminate\\Auth\\Events\\Login`, `Logout`, or `Registered` object. Ordinary
+listeners and queued notifications remain Laravel's. Unknown/missing subjects
+and invalid versions/types fail explicitly; payloads cannot select PHP classes
+or supply user models. EventBridge's inbound context suppresses fleet echo.
+The PHP decoder otherwise ignores the extra login snapshot fields; the explicit
+native translator's user-provider lookup and Laravel event behavior are unchanged.
+
+## Embedded queue workers
+
+The queue provider changes execution ownership, not queue storage: Redis,
+database, SQS and other backends remain Laravel application policy. Under the
+Claviron PHP host it replaces Laravel's process-signal worker with a worker
+that observes the task cancellation token at normal loop boundaries.
+
+A Redis `block_for` wait is outside the PHP VM and cannot observe that token.
+The provider therefore normalizes Redis queue connections to non-blocking
+polls before Laravel resolves them. An empty poll falls through to Laravel's
+ordinary `queue:work --sleep` interval, whose PHP `sleep()` is
+cancellation-aware in the embedded runtime. Ordinary PHP CLI and FPM never
+enter this provider path and retain the application's configured Redis blocking
+policy.
+
+## Native registration ownership
+
+The ext-php-rs 0.16 adapter appends complete builder results to
+`php-embed::extension::FunctionEntries`. The SAPI owns the function entry and its
+argument metadata together for the process lifetime; the Laravel extension does
+not free or separately retain them. Its hand-written broadcast handler uses
+`zend::run_handler` for the same panic/bailout boundary as the core host functions.
+
+The `native_registration` test (requiring `broadcast`) exercises the actual
+function's reflection metadata and unconfigured-transport exception across ZTS
+requests. Its harness remains package-local so the published crate can run it; the test
+starts no broadcast fleet, Laravel application or database.

@@ -1,5 +1,5 @@
 //! Development's reload for PHP. The watching is the runner shell's
-//! (`claviron_runner::watch`); what is Lumenize's is what counts as source
+//! (`claviron::runner::watch`); what is Lumenize's is what counts as source
 //! and what a change does: the PHP application restarts in this process,
 //! draining its own generation, once it has started.
 use std::path::PathBuf;
@@ -9,7 +9,7 @@ use claviron::app::management::ApplicationStarted;
 use claviron::app::{
     ApplicationId, ApplicationManager, ApplicationName, ApplicationRuntime,
 };
-use claviron_runner::watch::{Reaction, Source, SourceWatcher};
+use claviron::runner::watch::{Reaction, Source, SourceWatcher};
 
 /// Laravel's source; with no paths written, its source directories and the
 /// application entry, those that exist.

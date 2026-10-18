@@ -1,7 +1,7 @@
 //! One launch file: the common runner options and the hosted PHP application.
 use std::path::{Path, PathBuf};
 
-use claviron_runner::RunnerOptions;
+use claviron::runner::RunnerOptions;
 use serde::{Deserialize, Serialize};
 
 /// Deployment options. All runtime sections come from `config_path`, not a
@@ -58,7 +58,7 @@ fn default_config_max_depth() -> usize {
     64
 }
 
-pub(crate) type Launch = claviron_runner::launch::Launch<Configuration>;
+pub(crate) type Launch = claviron::runner::launch::Launch<Configuration>;
 
 impl From<Launch> for Options {
     fn from(launch: Launch) -> Self {
@@ -371,7 +371,7 @@ impl Configuration {
         // until configuration preparation, after all native extensions exist.
         let root = std::env::current_dir()
             .map_err(|error| registry::Error::msg(error.to_string()))?;
-        let parser = claviron::laravel::congif::LaravelConfigParser::new(
+        let parser = lumenize::congif::LaravelConfigParser::new(
             root,
             self.config_parser.max_depth,
         )
@@ -437,8 +437,8 @@ impl Configuration {
             )?;
             claviron::broadcast::register_with_config(state, config)?;
             if self.broadcasting.is_some() {
-                use claviron::laravel::broadcast::LaravelBroadcastProvider;
                 use claviron::runtime::Register;
+                use lumenize::broadcast::LaravelBroadcastProvider;
 
                 LaravelBroadcastProvider::register(state)?;
             }

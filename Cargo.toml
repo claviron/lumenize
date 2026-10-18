@@ -1,63 +1,67 @@
 [package]
-autotests = false
 name = "lumenize"
+version.workspace = true
+publish.workspace = true
+edition.workspace = true
+license.workspace = true
+authors.workspace = true
+repository.workspace = true
+autotests = false
+description = "Laravel integration for Claviron hosts, independent of their server boot"
+include = ["src/**", "tests/**", "php/**", "README.md", "LICENSE"]
+keywords = ["laravel", "php", "claviron", "octane", "integration"]
+categories = ["web-programming::http-server", "api-bindings"]
+
+[features]
+default = []
+# Independent integration boundaries; neither selects a server composition.
+auth = ["claviron/application", "claviron/auth", "dep:time"]
+broadcast = ["claviron/broadcast", "dep:arc-swap", "dep:ext-php-rs", "dep:serde_json"]
+
+[dependencies]
+# Integration capabilities only: no Runner, server bootstrap, Edge or Supervisor.
+claviron = { workspace = true, features = ["runtime", "php_embed"] }
+arc-swap = { workspace = true, optional = true }
+ext-php-rs = { workspace = true, optional = true }
+serde_json = { workspace = true, optional = true }
+time = { workspace = true, optional = true }
+tokio.workspace = true
+tokio-util.workspace = true
+
+[dev-dependencies]
+futures-util.workspace = true
+http.workspace = true
+http-body-util.workspace = true
+tempfile.workspace = true
+
+[[test]]
+name = "native_registration"
+required-features = ["broadcast"]
+
+[workspace]
+resolver = "3"
+members = ["runner"]
+default-members = ["."]
+
+[workspace.package]
 version = "0.1.0-alpha.2"
 publish = false
 edition = "2024"
-authors = ["Claviron <code@claviron.org>"]
-description = "Safe Atomic Rust Power for PHP/Laravel applications through Claviron and Orbit."
 license = "MIT"
-readme = "README.md"
+authors = ["Claviron <code@claviron.org>"]
 repository = "https://github.com/claviron/lumenize.git"
-include = ["src/**", "tests/**", "Cargo.toml", "README.md", "ARCHITECTURE.md", "AGENTS.md", "LICENSE"]
-keywords = ["php", "laravel", "runtime", "claviron", "starter-kit"]
-categories = ["web-programming::http-server"]
 
-# Axum is the default routing adapter; the PHP engine and raw Tower service
-# remain usable with default-features = false.
-[features]
-default = ["axum"]
-axum = ["claviron/axum", "claviron-runner/axum"]
-# Native HTTP baselines; excluded from normal application builds.
-bench = ["axum", "claviron/bench", "claviron/runner"]
-# The application's binary owns argv; opt in where main reads Options::from_args.
-cli = ["dep:clap", "claviron-runner/cli"]
-# One application's TCP certificate, optionally with client authentication.
-tls = ["claviron-runner/tls"]
-# Static mounts from Claviron's runner shell; no edge/vhost runtime.
-files = ["axum", "claviron/files", "claviron-runner/files"]
-# Native Laravel broadcasting and its HTTP/WebSocket adapters in this process.
-broadcast = ["axum", "claviron-runner/broadcast"]
-# PHP source watching for development; production carries no watcher by default.
-watch = ["claviron-runner/watch"]
-# Claviron's log pipeline for this application's fleet: the channels
-# `logging.channels` in the launch file declares, written by the master's one
-# writer. PHP reaches them through `claviron_log()` and the `claviron` log
-# driver. `log-otlp` adds the OTLP adapter.
-log = ["claviron/log-pipeline"]
-log-otlp = ["log", "claviron/log-otlp"]
-metrics = ["claviron/metrics"]
-# Runner-owned native database pools, using Claviron's existing DB schema.
-db = ["claviron/db"]
-postgres = ["db", "claviron/postgres"]
-mysql = ["db", "claviron/mysql"]
-sqlite = ["db", "claviron/sqlite"]
-# Explicit compatibility with Linux kernels older than 5.3 (no pidfd).
-legacy-linux = ["claviron/legacy-linux"]
-
-[dependencies]
-claviron = { path = "../claviron", default-features = false, features = ["laravel", "supervisor"] }
-claviron-runner = { path = "../claviron/crates/runner", default-features = false, features = ["supervisor"] }
-async-trait = "0.1"
-clap = { version = "4", features = ["derive"], optional = true }
+[workspace.dependencies]
+# Public Claviron facade only; framework adapters never become core dependencies.
+claviron = { version = "0.2.0-alpha.17", path = "../claviron", default-features = false }
+lumenize = { version = "0.1.0-alpha.2", path = "." }
+arc-swap = "1.9"
+ext-php-rs = { version = "0.16", default-features = false, features = ["embed", "enum", "observer", "runtime", "smartstring"] }
+futures-util = "0.3"
+http = "1"
 http-body-util = "0.1"
-serde = { version = "1", features = ["derive", "rc"] }
 serde_json = "1"
-serde_yaml = "0.9"
-tokio = { version = "1", features = ["macros", "rt-multi-thread", "sync"] }
-tower = { version = "0.5", features = ["util"] }
-
-[dev-dependencies]
-tokio = { version = "1", features = ["test-util"] }
 tempfile = "3"
-rcgen = "0.14"
+time = { version = "0.3", features = ["formatting"] }
+tokio = { version = "1", features = ["rt", "sync"] }
+tokio-util = { version = "0.7", features = ["rt"] }

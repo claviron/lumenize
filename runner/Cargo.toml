@@ -1,0 +1,68 @@
+[package]
+autotests = false
+name = "lumenize-runner"
+version.workspace = true
+publish = false
+edition = "2024"
+authors = ["Claviron <code@claviron.org>"]
+description = "Laravel application runner and console launcher using Lumenize integration"
+license = "MIT"
+repository = "https://github.com/claviron/lumenize.git"
+include = ["src/**", "tests/**", "README.md", "LICENSE"]
+keywords = ["php", "laravel", "runtime", "claviron", "starter-kit"]
+categories = ["web-programming::http-server"]
+
+# Axum is the default routing adapter; the PHP engine and raw Tower service
+# remain usable with default-features = false.
+[features]
+default = ["axum"]
+axum = ["claviron/axum"]
+# Native HTTP baselines; excluded from normal application builds.
+bench = ["axum", "claviron/bench", "claviron/runner"]
+# The application's binary owns argv; opt in where main reads Options::from_args.
+cli = ["dep:clap", "dep:tokio-util", "claviron/runner-cli"]
+# One application's TCP certificate, optionally with client authentication.
+tls = ["claviron/tls"]
+# Static mounts from Claviron's runner shell; no edge/vhost runtime.
+files = ["axum", "claviron/files"]
+# Native Laravel broadcasting and its HTTP/WebSocket adapters in this process.
+broadcast = ["axum", "claviron/broadcast", "lumenize/broadcast"]
+# PHP source watching for development; production carries no watcher by default.
+watch = ["claviron/runner-watch"]
+# Claviron's log pipeline for this application's fleet: the channels
+# `logging.channels` in the launch file declares, written by the master's one
+# writer. PHP reaches them through `claviron_log()` and the `claviron` log
+# driver. `log-otlp` adds the OTLP adapter.
+log = ["claviron/log-pipeline"]
+log-otlp = ["log", "claviron/log-otlp"]
+metrics = ["claviron/metrics"]
+# Runner-owned native database pools, using Claviron's existing DB schema.
+db = ["claviron/db"]
+postgres = ["db", "claviron/postgres"]
+mysql = ["db", "claviron/mysql"]
+sqlite = ["db", "claviron/sqlite"]
+# Explicit compatibility with Linux kernels older than 5.3 (no pidfd).
+legacy-linux = ["claviron/legacy-linux"]
+
+[dependencies]
+claviron = { workspace = true, features = ["runner", "supervisor", "php_embed", "cache"] }
+lumenize.workspace = true
+async-trait = "0.1"
+clap = { version = "4", features = ["derive"], optional = true }
+http-body-util = "0.1"
+serde = { version = "1", features = ["derive", "rc"] }
+serde_json = "1"
+serde_yaml = "0.9"
+tokio = { workspace = true, features = ["macros", "rt-multi-thread", "signal"] }
+tokio-util = { workspace = true, optional = true }
+tower = { version = "0.5", features = ["util"] }
+
+[dev-dependencies]
+tokio = { version = "1", features = ["test-util"] }
+tempfile = "3"
+rcgen = "0.14"
+
+[[bin]]
+name = "lumenize"
+path = "src/bin/lumenize.rs"
+required-features = ["cli"]

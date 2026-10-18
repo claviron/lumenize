@@ -1,8 +1,8 @@
 use std::sync::Arc;
 
 use claviron::Server;
+use claviron::runner::{Owner, launch};
 use claviron::runtime::{AppState, Register, registry};
-use claviron_runner::{Owner, launch};
 
 use crate::Options;
 use crate::application::{PhpOwner, PhpService};
@@ -102,7 +102,7 @@ impl Runner {
         F: FnOnce(AppState) -> claviron::axum::Router + Send + 'static,
     {
         self.interceptor = Some(Box::new(move |state| {
-            claviron_runner::register_router(state, router)
+            claviron::runner::register_router(state, router)
         }));
         self
     }
@@ -172,7 +172,7 @@ impl Runner {
             .system_log(system_log)
             .with_definitions(move |state| {
                 let definitions = definitions.inherited(state)?;
-                claviron_runner::supervisor::register_policy(
+                claviron::runner::supervisor::register_policy(
                     state,
                     definitions.runner.supervisor.clone().unwrap_or_default(),
                 )?;
@@ -203,7 +203,7 @@ impl Runner {
                     php.clone(),
                     script,
                 )))?;
-                claviron_runner::register_owner(state, Owner::new(php))?;
+                claviron::runner::register_owner(state, Owner::new(php))?;
                 let root = std::env::current_dir()
                     .map_err(|error| registry::Error::msg(error.to_string()))?;
                 launch::register_routing(state, runner, &root)?;
@@ -216,7 +216,7 @@ impl Runner {
                 if let Some(interceptor) = interceptor {
                     interceptor(state)?;
                 }
-                claviron_runner::ensure_application(state)?;
+                claviron::runner::ensure_application(state)?;
                 launch::register_trust(state, runner)?;
 
                 #[cfg(feature = "watch")]
