@@ -3,7 +3,12 @@
 The `claviron/laravel` Composer package exposes Laravel adapters under `Lumenize\`.
 Claviron's native/static classes remain under `Claviron\`; driver names,
 native functions and event topics are unchanged. See the
-[namespace migration notes](../README.md#php-integration) before upgrading workers.
+[namespace migration notes](https://github.com/claviron/lumenize#php-integration) before upgrading workers.
+
+Source changes belong in the [Lumenize repository](https://github.com/claviron/lumenize/tree/main/php).
+The standalone Composer repository is generated from committed package sources;
+Packagist versions follow its release tags. Composer installs PHP integration
+code, not the native Claviron host or the Lumenize executable.
 
 This package replaces Laravel's server-side Pusher HTTP call with Claviron's
 native broadcast primitive. Browser clients continue to use Laravel Echo and
