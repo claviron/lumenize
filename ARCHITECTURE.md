@@ -258,18 +258,14 @@ Consumers still own their bootstrap, profiles, providers and authentication.
 
 ## Native SQLite database adapter
 
-`Providers\DatabaseServiceProvider` also recognizes `claviron` on `sqlite`
-connections. Hosted opt-in requires the native SQLite feature; ordinary
-Artisan retains Laravel's PDO factory. `Database\SQLiteConnection` keeps
-Laravel's grammar, query events, Eloquent hydration and schema processor;
-`SQLiteProcessor` reads each native statement's insert ID without PDO.
+SQLite profiles with `claviron` use `Database\SQLiteConnection` over a named
+Rust pool. Hosted use requires the `sqlite` feature; Artisan continues using
+PDO. `SQLiteProcessor` supplies insert IDs from native statement results.
 
-Connection leases, parameter/result codecs and abandoned-transaction cleanup
-belong to Claviron PHP Embed. The SQLite file is opened by the application's
-Rust layer in the same process as PHP, never by an Orbit caller or Edge.
-Laravel owns nested savepoints, transaction modes, retry counts and afterCommit
-callbacks. An ambiguous COMMIT or callback failure is not replayed. Connection
-options, including the write-lock busy timeout, belong to the native pool config.
+Laravel keeps its query and transaction APIs. Claviron executes SQL in the PHP
+process and rolls back unfinished transactions at request boundaries. Pool
+configuration controls lock waiting. An uncertain COMMIT outcome or a failed
+`afterCommit` callback must not replay the transaction.
 
 ## Native MySQL database adapter
 
