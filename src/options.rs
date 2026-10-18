@@ -371,7 +371,7 @@ impl Configuration {
         // until configuration preparation, after all native extensions exist.
         let root = std::env::current_dir()
             .map_err(|error| registry::Error::msg(error.to_string()))?;
-        let parser = lumenize::congif::LaravelConfigParser::new(
+        let parser = crate::congif::LaravelConfigParser::new(
             root,
             self.config_parser.max_depth,
         )
@@ -437,8 +437,8 @@ impl Configuration {
             )?;
             claviron::broadcast::register_with_config(state, config)?;
             if self.broadcasting.is_some() {
+                use crate::broadcast::LaravelBroadcastProvider;
                 use claviron::runtime::Register;
-                use lumenize::broadcast::LaravelBroadcastProvider;
 
                 LaravelBroadcastProvider::register(state)?;
             }

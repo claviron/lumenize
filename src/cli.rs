@@ -1,20 +1,11 @@
+//! Standalone Artisan command entry, independent of HTTP serving.
 use std::collections::BTreeMap;
-use std::process::ExitCode;
 
 use tokio_util::sync::CancellationToken;
 
-#[tokio::main]
-async fn main() -> ExitCode {
-    match run().await {
-        Ok(status) => ExitCode::from(u8::try_from(status).unwrap_or(1)),
-        Err(error) => {
-            eprintln!("lumenize: {error}");
-            ExitCode::FAILURE
-        }
-    }
-}
-
-async fn run() -> Result<i32, String> {
+/// Execute the current project's Artisan command with literal process arguments.
+/// Ctrl-C requests cooperative cancellation and joins the owned PHP execution.
+pub async fn run() -> Result<i32, String> {
     let args = std::env::args_os()
         .skip(1)
         .map(|arg| {
@@ -37,7 +28,7 @@ async fn run() -> Result<i32, String> {
     let cancellation = CancellationToken::new();
     let command_cancellation = cancellation.clone();
     let mut command = tokio::task::spawn_blocking(move || {
-        lumenize::artisan::run(cwd, args, environment, command_cancellation)
+        crate::artisan::run(cwd, args, environment, command_cancellation)
     });
     tokio::select! {
         result = &mut command => result.map_err(|error| error.to_string())?,

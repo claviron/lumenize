@@ -2,14 +2,14 @@
 
 Laravel integration for applications hosted by Claviron.
 
-This repository separates framework integration from the ready-made application
-runner. An application may use the integration library while retaining its own
+The library separates framework integration from its optional application
+runner. An application may use the integration APIs while retaining its own
 Claviron boot, Edge hosts, configuration, providers and process lifecycle.
 
 | Package | Responsibility |
 | --- | --- |
-| `lumenize` | Laravel configuration evaluation, opt-in auth events and native broadcasting, and the Artisan execution API |
-| [`lumenize-runner`](runner/README.md) | Launch options, PHP owner, socket/Orbit ingress composition, source watching and the `lumenize` console binary |
+| `lumenize` | Laravel integration, Artisan API, and opt-in `runner` and `cli` capabilities |
+| [`lumenize-cli`](cli/README.md) | Thin `lumenize` Artisan console binary; no HTTP Runner dependency |
 | [`claviron/laravel`](php/README.md) (Composer) | Laravel drivers, Octane receive/respond adapter, providers, queue and event integration |
 
 The Rust packages are development implementations with publishing disabled.
@@ -68,10 +68,18 @@ mode or select the package's Octane adapter in Application mode. See the
 
 ## Ready-made application composition
 
-Use `lumenize-runner` when the application wants the existing `Runner` and
-`Options` API instead of composing its own Edge. The downstream application
-still owns its `main.rs`; the runner package also carries the separate Artisan
-console entry. The integration library never depends on that package.
+Enable `runner` when the application wants `lumenize::{Options, Runner}` instead
+of composing its own Edge. The downstream application still owns its `main.rs`.
+See the [Runner guide](docs/runner/README.md) for socket/Orbit ingress, routing and workers.
+
+```toml
+lumenize = { version = "0.2.0-alpha.18", features = ["runner", "cli", "axum"] }
+```
+
+`runner` and `cli` are independent. `cli` alone provides `lumenize::cli::run()`
+for Artisan without a server or supervisor; `runner + cli` also enables
+`Options::from_args()`. Neither is enabled by default. The separate executable
+package selects only `cli` and does not own the reusable Runner API.
 
 ## License
 

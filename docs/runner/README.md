@@ -1,27 +1,28 @@
-# Lumenize
+# Lumenize Runner
 
 *For the small, fast spirit Lumen left behind.*
 
 Lumenize brings Safe Atomic Rust Power to PHP/Laravel's breeze of magic.
 A Laravel-focused PHP application server powered by Claviron.
 
-This is the separate `lumenize-runner` Rust package. Applications owning their
-own Edge boot use the [Lumenize integration library](../README.md) instead.
-Examples below import the runner as `lumenize_runner`.
+Enable the root `lumenize` library's `runner` feature to use `Options` and
+`Runner`. Applications owning their own Edge boot use the
+[integration APIs](../../README.md) without that feature. The separate
+`lumenize-cli` package is only an Artisan console executable.
 
-**Development API. Publishing is disabled. The published `0.0.0` crate is a
-name-reservation placeholder, not this implementation.**
+Alpha APIs and configuration may change without backward compatibility guarantees.
 
 ## Features
 
 | Feature | Role |
 | --- | --- |
-| `axum` (default) | `register_router` and the shared Axum re-export |
+| `runner` | Opt-in single-application composition; no default features |
+| `axum` | `register_router` and the shared Axum re-export |
 | `bench` | Opt-in native HTTP baselines through the existing Routable registry |
-| `cli` | Parse the application's command line |
+| `cli` | Independent Artisan entry; with `runner`, parse launch options |
 | `tls` | HTTPS and optional mTLS on the TCP listener |
 | `files` | Explicit static mounts; selects the Axum adapter |
-| `broadcast` | Native Laravel broadcasting and socket endpoints; selects Axum |
+| `broadcast` | Native Laravel broadcasting; with `runner`, socket endpoints |
 | `watch` | Native source notifications and PHP application restarts for development |
 | `log` | `logging.channels` for Laravel's `claviron` log driver |
 | `log-otlp` | `log` plus the OTLP channel adapter |
@@ -33,35 +34,35 @@ name-reservation placeholder, not this implementation.**
 The doors, guards, routing, static mounts, broadcasting, watching and workers
 are Claviron's runner shell (`claviron_runner`), shared with the Python
 runner; `workers: N` in `lumenize.yaml` serves the application from N worker
-processes. `default-features = false` retains embedded PHP, TCP/UDS/Orbit ingress and
+processes. Selecting only `runner` retains embedded PHP, TCP/UDS/Orbit ingress and
 `register_router_with` for a raw Tower service. Neither Axum nor a file watcher
 is selected by that base. A raw service takes the shell's `AppRequest`, whose
 body is `RequestBody` (`RequestBody::new(body)`, `RequestBody::empty()`). These features do
 not select Claviron's edge, virtual hosts or another language runtime. TLS and
-watch also work without Axum. CLI belongs to the application's binary and is
-never enabled implicitly by another feature.
+watch also work without Axum. `cli` is independent: it can launch Artisan
+without `runner`, or add `Options::from_args()` when both are selected.
 
 ## Application-owned entry
 
 Your application owns its binary, Laravel code and runtime configuration.
-Lumenize composes Claviron's standalone `server` lifecycle with embedded PHP.
+The `runner` feature composes Claviron's standalone `server` lifecycle with embedded PHP.
 Its current ingress adapters support HTTP/1 and HTTP/2 over TCP or a Unix
 socket, and the same-host Orbit application transport. Select one or several.
 No JavaScript engine or edge/vhost server is enabled by this composition.
 
 ```rust,no_run
-use lumenize_runner::{Options, Runner};
-use lumenize_runner::claviron::runtime::{AppState, registry};
+use lumenize::{Options, Runner};
+use lumenize::claviron::runtime::{AppState, registry};
 
 fn configure(state: &AppState) -> registry::Result<()> {
-    lumenize_runner::register_router(state, |_state| {
-        lumenize_runner::axum::Router::new()
-            .route("/rust", lumenize_runner::axum::routing::get(|| async { "Hello from Rust" }))
+    lumenize::register_router(state, |_state| {
+        lumenize::axum::Router::new()
+            .route("/rust", lumenize::axum::routing::get(|| async { "Hello from Rust" }))
     })
 }
 
 #[tokio::main]
-async fn main() -> lumenize_runner::Result<()> {
+async fn main() -> lumenize::Result<()> {
     Runner::new("web")
         .with_options(Options::from_file("lumenize.yaml")?)
         .with_bootstrap(configure)
@@ -120,7 +121,7 @@ No request inspects Composer or changes execution mode.
 
 `request_mode: application` or `request_mode: script` in YAML overrides
 detection. Code can override YAML with
-`Runner::new("web").with_request_mode(lumenize_runner::PhpRunner::Script)`;
+`Runner::new("web").with_request_mode(lumenize::PhpRunner::Script)`;
 this choice survives a later `with_options` or `with_config_path` call.
 
 Application mode uses the persistent receive/respond adapter. An explicit
@@ -202,7 +203,7 @@ its size in `x-received`. Stats report process-local `in_flight`, `total` and
 `sessions`, not fleet totals. Payload bodies are retained once per requested
 size; keep sizes fixed when comparing memory between load-test rounds.
 The same router supplies `/bench/plain`, `/bench/json` and streaming
-POST `/bench/echo`. `lumenize_runner::bench` retains its compatibility exports.
+POST `/bench/echo`. `lumenize::bench` retains its compatibility exports.
 
 ## Native database pools
 
@@ -271,7 +272,7 @@ Enable `watch` and `cli` in the application's Lumenize dependency, then start th
 same application binary with `--watch`. For example:
 
 ```sh
-cargo run --features lumenize-runner/watch,lumenize-runner/cli -- --config-path lumenize.dev.yaml --watch
+cargo run --features lumenize/watch,lumenize/cli -- --config-path lumenize.dev.yaml --watch
 ```
 
 A development launch can select source watching in the same file:
@@ -391,7 +392,7 @@ and an explicit mount at the same prefix retains its policy.
   An application-owned multihost edge and starter generation remain future work,
   independent of the existing PHP pool capacity.
 
-See [ARCHITECTURE.md](ARCHITECTURE.md) for ownership and lifecycle contracts.
+See [Runner architecture](ARCHITECTURE.md) for ownership and lifecycle contracts.
 
 ## Native Laravel broadcasting
 

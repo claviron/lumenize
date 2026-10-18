@@ -9,11 +9,17 @@ and Artisan APIs are available without a serving composition; independent
 registering them starts no server and creates no second AppState, PHP engine,
 supervisor or listener. The host supplies existing state and services.
 
-`runner/` is the separate `lumenize-runner` package. It owns the existing
-Runner, launch/options, PHP owner, watcher and Artisan console executable.
-It depends on this library; the reverse dependency is forbidden. Core Claviron
-does not depend on either Lumenize package. A custom Edge application registers
-library adapters during its own boot and never needs the runner package.
+The root library's opt-in `runner` feature owns Runner, launch/options, PHP
+owner and watcher composition. Its independent `cli` feature exposes Artisan
+execution from process arguments and adds launch parsing when `runner` is also
+selected. Neither is a default feature. Integration-only hosts register adapters
+during their own boot without enabling Runner, server or Supervisor.
+See [Runner architecture](docs/runner/ARCHITECTURE.md) for the serving contract.
+
+`cli/` is the separate `lumenize-cli` executable package. Its thin binary
+calls `cli::run()` with the `cli` feature, not `runner`. It depends on this
+library; the reverse dependency is forbidden. Core Claviron does not depend on
+either package.
 
 PHP integration classes use `Lumenize\`; the engine's `Claviron\` classes
 remain engine-owned. Composer identity `claviron/laravel`, native function names,
@@ -92,7 +98,7 @@ library's Cargo test suite.
 
 ## Lumenize console executable
 
-`runner/src/bin/lumenize.rs` is the `lumenize-runner` package's console binary. Its
+`cli/src/bin/lumenize.rs` calls the root library's `cli::run()` entry. Its
 default behavior is to launch local Artisan commands. It uses
 `php-embed::console::PhpConsole`, not the facade's server feature, an HTTP
 listener, TaskService or an invocation command. Run it from the Laravel
@@ -112,8 +118,10 @@ terminal streams. Ctrl-C signals the owned execution's cancellation token;
 completion still joins its PHP thread. This is cooperative cancellation, not
 permission to kill foreign blocking work. PHP INI selection remains process-owned.
 
-Build/install it with `cargo install --path runner --features cli --bin lumenize`,
-or build `lumenize-runner` with its `cli` feature. The root library has no binary.
+Build/install it with `cargo install --path cli --features cli --bin lumenize`,
+or install `lumenize-cli` with its default `cli` feature. The root library
+has no binary. Claviron's weak `runner-cli` forwarding adds shared argument
+parsing only when the serving runner is separately selected.
 The first standalone entry does not load runtime YAML, bind native DB/cache
 services or attach to Orbit. Laravel can use its ordinary PHP/PDO drivers;
 explicit native driver configuration still fails closed without prepared host

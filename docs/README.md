@@ -28,10 +28,9 @@ an integration feature. The application owns its base path, autoloader, bootstra
 providers, and request class.
 
 Use [Edge](https://github.com/claviron/claviron/tree/main/crates/edge/README.md) for host-aware composition or
-[Runner](../runner/README.md) for a single-framework application. The
-[Lumenize Runner](../runner/README.md) is a separate package. A custom Edge host
-uses this integration library without that runner; the current crates.io entry
-is a name-reservation placeholder.
+[Runner](runner/README.md) for a single-framework application by enabling `runner`
+in the root library. A custom Edge host uses the same integration APIs without
+that feature; the separate executable package is only an Artisan launcher.
 
 ## Native configuration and Artisan
 
@@ -47,7 +46,8 @@ evaluation, because evaluation shares the process SAPI with hosted execution.
 Registration itself does not execute PHP.
 
 `artisan::run` executes the application's own `artisan` entry through the native
-console API. The separate `lumenize-runner` package includes a `lumenize` console binary
+console API. The independent `cli` feature adds `cli::run()`; it does not select
+the HTTP Runner. The separate `lumenize-cli` package includes a thin `lumenize` console binary
 that accepts ordinary Artisan arguments from the project root. It preserves
 terminal streams, command boot, and exit status; it does not implicitly start
 HTTP, TaskService, native database/cache services, or join a live fleet. Console

@@ -48,21 +48,22 @@ The package subscribes the persistent application loop to both bus topics.
 
 ## Lumenize console
 
-The separate Rust `lumenize-runner` package builds a `lumenize` binary with its `cli` feature. Its default
-behavior is to execute the application's own Artisan entry:
+The separate Rust `lumenize-cli` package builds a thin `lumenize` binary
+using the root library's independent `cli` feature, without HTTP `runner`.
+It executes the application's own Artisan entry:
 
 ```sh
-cargo build -p lumenize-runner --features cli --bin lumenize
+cargo build -p lumenize-cli --features cli --bin lumenize
 ```
 
 Install it on your Cargo binary path from the library checkout:
 
 ```sh
-cargo install --path runner --features cli --bin lumenize --locked
+cargo install --path cli --features cli --bin lumenize --locked
 ```
 
 Then run `lumenize list` from the application root. The executable name is
-`lumenize`; its Rust package is `lumenize-runner`.
+`lumenize`; its Rust package is `lumenize-cli`.
 
 Run that executable from your Laravel application root, for example
 `/path/to/lumenize list`. It executes `./artisan` in the native PHP engine;

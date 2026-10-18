@@ -17,16 +17,39 @@ default = []
 # Independent integration boundaries; neither selects a server composition.
 auth = ["claviron/application", "claviron/auth", "dep:time"]
 broadcast = ["claviron/broadcast", "dep:arc-swap", "dep:ext-php-rs", "dep:serde_json"]
+# One application's PHP owner and socket/Orbit serving composition.
+runner = ["claviron/runner", "claviron/supervisor", "claviron/cache", "dep:async-trait", "dep:http-body-util", "dep:serde", "dep:serde_json", "dep:serde_yaml", "dep:tower"]
+# Artisan command entry; also enables Options::from_args when runner is selected.
+cli = ["dep:clap", "claviron/runner-cli", "tokio/macros", "tokio/rt-multi-thread", "tokio/signal"]
+axum = ["claviron/axum"]
+bench = ["runner", "axum", "claviron/bench"]
+tls = ["claviron/tls"]
+files = ["runner", "axum", "claviron/files"]
+watch = ["runner", "claviron/runner-watch"]
+log = ["claviron/log-pipeline"]
+log-otlp = ["log", "claviron/log-otlp"]
+metrics = ["claviron/metrics"]
+db = ["claviron/db"]
+postgres = ["db", "claviron/postgres"]
+mysql = ["db", "claviron/mysql"]
+sqlite = ["db", "claviron/sqlite"]
+legacy-linux = ["claviron/legacy-linux"]
 
 [dependencies]
-# Integration capabilities only: no Runner, server bootstrap, Edge or Supervisor.
+# The base integration does not select Runner, Edge or Supervisor.
 claviron = { workspace = true, features = ["runtime", "php_embed"] }
 arc-swap = { workspace = true, optional = true }
+async-trait = { workspace = true, optional = true }
+clap = { workspace = true, optional = true }
 ext-php-rs = { workspace = true, optional = true }
+http-body-util = { workspace = true, optional = true }
+serde = { workspace = true, optional = true }
 serde_json = { workspace = true, optional = true }
+serde_yaml = { workspace = true, optional = true }
 time = { workspace = true, optional = true }
 tokio.workspace = true
 tokio-util.workspace = true
+tower = { workspace = true, optional = true }
 
 [dev-dependencies]
 futures-util.workspace = true
@@ -40,7 +63,7 @@ required-features = ["broadcast"]
 
 [workspace]
 resolver = "3"
-members = ["runner"]
+members = ["cli"]
 default-members = ["."]
 
 [workspace.package]
@@ -54,14 +77,19 @@ repository = "https://github.com/claviron/lumenize.git"
 [workspace.dependencies]
 # Public Claviron facade only; framework adapters never become core dependencies.
 claviron = { version = "0.2.0-alpha.17", path = "../claviron", default-features = false }
-lumenize = { version = "0.1.0-alpha.2", path = "." }
+lumenize = { version = "0.1.0-alpha.2", path = ".", default-features = false }
 arc-swap = "1.9"
+async-trait = "0.1"
+clap = { version = "4", features = ["derive"] }
 ext-php-rs = { version = "0.16", default-features = false, features = ["embed", "enum", "observer", "runtime", "smartstring"] }
 futures-util = "0.3"
 http = "1"
 http-body-util = "0.1"
+serde = { version = "1", features = ["derive", "rc"] }
 serde_json = "1"
+serde_yaml = "0.9"
 tempfile = "3"
 time = { version = "0.3", features = ["formatting"] }
 tokio = { version = "1", features = ["rt", "sync"] }
 tokio-util = { version = "0.7", features = ["rt"] }
+tower = { version = "0.5", features = ["util"] }

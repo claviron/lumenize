@@ -1,0 +1,27 @@
+[package]
+autotests = false
+name = "lumenize-cli"
+version.workspace = true
+publish = false
+edition = "2024"
+authors = ["Claviron <code@claviron.org>"]
+description = "Standalone Artisan console launcher using Lumenize"
+license = "MIT"
+repository = "https://github.com/claviron/lumenize.git"
+include = ["src/**", "README.md", "LICENSE"]
+keywords = ["php", "laravel", "artisan", "claviron", "cli"]
+categories = ["command-line-utilities"]
+
+# This package is only the executable; reusable APIs live in lumenize.
+[features]
+default = ["cli"]
+cli = ["lumenize/cli"]
+
+[dependencies]
+lumenize.workspace = true
+tokio = { workspace = true, features = ["macros", "rt-multi-thread"] }
+
+[[bin]]
+name = "lumenize"
+path = "src/bin/lumenize.rs"
+required-features = ["cli"]

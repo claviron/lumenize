@@ -1,10 +1,10 @@
-# Lumenize
+# Lumenize Runner
 
 ## Role
 
-`lumenize-runner` is a Laravel-focused PHP runner built on Claviron and the
-root Lumenize integration library. It is an
-independent library project, not the end user's application binary.
+The root `lumenize` library's `runner` feature composes a Laravel-focused PHP
+application on Claviron. It is optional, not the library's defining dependency.
+The separate `lumenize-cli` package is only an Artisan console executable.
 
 The downstream application owns its Rust `main.rs`, binary, Laravel app,
 configuration, and application-specific providers. A starter kit may generate
@@ -17,10 +17,10 @@ that composition in the future.
   supplies Laravel integration. Neither runner nor facade selects an edge implicitly.
 - Compose the existing PHP runner and embedded PHP extension mechanisms;
   do not introduce a second PHP engine or supervisor.
-- Shared Laravel integration lives in the root `lumenize` library and remains
-  usable without this package. Only runner-specific composition and future
-  starter tooling belong here; application-specific host extensions belong to
-  the downstream app.
+- Shared Laravel integration remains usable without the `runner` feature.
+  Runner modules, options and their tests live in the root package; the
+  executable package depends only on its independent `cli` entry.
+  Application-specific host extensions belong to the downstream app.
 - Edge, upstream transport, and additional language runtimes are optional
   composition choices, not mandatory dependencies of every application.
 - Providers register definitions without resolving dependencies during
@@ -70,7 +70,7 @@ loads `lumenize.yaml`; the optional `cli` feature adds application-owned argv
 parsing. No edge preset or additional language engine is selected.
 
 The runner loads one launch document; the application's registration callback owns Rust
-providers and services and calls `lumenize_runner::register_router(state, routes::router)`
+providers and services and calls `lumenize::register_router(state, routes::router)`
 with a `FnOnce(AppState) -> Router` builder. The registered service uses PHP as
 the fallback for undeclared paths and methods. `register_router_with` instead
 hands the builder the shell's `Owner` and registers its Tower service unchanged;
