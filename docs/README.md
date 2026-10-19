@@ -149,8 +149,8 @@ not belong in this shared package.
 
 ## Status and license
 
-Part of Claviron's alpha development series; APIs may change. This README
-describes the current source tree, not the placeholder package on crates.io.
+Part of Claviron's alpha development series; APIs and configuration may change
+without backward compatibility guarantees.
 
 The Rust library is licensed under [MIT](../LICENSE).
 The companion Composer package declares its license in [its manifest](../php/composer.json).

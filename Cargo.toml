@@ -8,7 +8,7 @@ authors.workspace = true
 repository.workspace = true
 autotests = false
 description = "Laravel integration for Claviron hosts, independent of their server boot"
-include = ["src/**", "tests/**", "php/**", "README.md", "LICENSE"]
+include = ["/src/**", "/php/src/**", "/php/runners/**", "/php/config/**", "/php/composer.json", "/php/README.md", "/README.md", "/LICENSE"]
 keywords = ["laravel", "php", "claviron", "octane", "integration"]
 categories = ["web-programming::http-server", "api-bindings"]
 
@@ -67,17 +67,17 @@ members = ["cli", "examples/laravel"]
 default-members = ["."]
 
 [workspace.package]
-version = "0.1.0-alpha.2"
-publish = false
+version = "0.2.0-alpha.18"
+publish = true
 edition = "2024"
 license = "MIT"
-authors = ["Claviron <code@claviron.org>"]
+authors = ["iadev09 <iadev09@claviron.dev>"]
 repository = "https://github.com/claviron/lumenize.git"
 
 [workspace.dependencies]
 # Public Claviron facade only; framework adapters never become core dependencies.
-claviron = { version = "0.2.0-alpha.17", path = "../claviron", default-features = false }
-lumenize = { version = "0.1.0-alpha.2", path = ".", default-features = false }
+claviron = { version = "0.2.0-alpha.18", path = "../claviron", default-features = false }
+lumenize = { version = "0.2.0-alpha.18", path = ".", default-features = false }
 arc-swap = "1.9"
 async-trait = "0.1"
 clap = { version = "4", features = ["derive"] }

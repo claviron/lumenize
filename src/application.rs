@@ -35,10 +35,10 @@ impl PhpService {
 }
 
 impl Service<AppRequest> for PhpService {
+    type Response = RouteResponse;
     type Error = Infallible;
     type Future =
         Pin<Box<dyn Future<Output = Result<RouteResponse, Infallible>> + Send>>;
-    type Response = RouteResponse;
 
     fn poll_ready(
         &mut self,

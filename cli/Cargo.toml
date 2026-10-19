@@ -2,13 +2,13 @@
 autotests = false
 name = "lumenize-cli"
 version.workspace = true
-publish = false
+publish.workspace = true
 edition = "2024"
-authors = ["Claviron <code@claviron.org>"]
+authors = ["iadev09 <iadev09@claviron.dev>"]
 description = "Standalone Artisan console launcher using Lumenize"
 license = "MIT"
 repository = "https://github.com/claviron/lumenize.git"
-include = ["src/**", "README.md", "LICENSE"]
+include = ["/src/**", "/README.md", "/LICENSE"]
 keywords = ["php", "laravel", "artisan", "claviron", "cli"]
 categories = ["command-line-utilities"]
 
