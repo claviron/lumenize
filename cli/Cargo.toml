@@ -8,7 +8,7 @@ authors = ["iadev09 <iadev09@claviron.dev>"]
 description = "Standalone Artisan console launcher using Lumenize"
 license = "MIT"
 repository = "https://github.com/claviron/lumenize.git"
-include = ["/src/**", "/README.md", "/LICENSE"]
+include = ["/src/**", "/README.md", "/LICENSE", "!**/.DS_Store"]
 keywords = ["php", "laravel", "artisan", "claviron", "cli"]
 categories = ["command-line-utilities"]
 
