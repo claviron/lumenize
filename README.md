@@ -111,7 +111,7 @@ of composing its own Edge. The downstream application still owns its `main.rs`.
 See the [Runner guide](docs/runner/README.md) for socket/Orbit ingress, routing and workers.
 
 ```toml
-lumenize = { version = "0.2.0-alpha.18", features = ["runner", "cli", "axum"] }
+lumenize = { version = "0.2.0-alpha.19", features = ["runner", "cli", "axum"] }
 ```
 
 `runner` and `cli` are independent. `cli` alone provides `lumenize::cli::run()`
