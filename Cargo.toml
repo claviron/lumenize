@@ -76,8 +76,8 @@ repository = "https://github.com/claviron/lumenize.git"
 
 [workspace.dependencies]
 # Public Claviron facade only; framework adapters never become core dependencies.
-claviron = { version = "0.2.0-alpha.19", path = "../claviron", default-features = false }
-lumenize = { version = "0.2.0-alpha.19", path = ".", default-features = false }
+claviron = { path = "../claviron", default-features = false }
+lumenize = { path = ".", default-features = false }
 arc-swap = "1.9"
 async-trait = "0.1"
 clap = { version = "4", features = ["derive"] }

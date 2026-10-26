@@ -222,6 +222,19 @@ impl Configuration {
                 let application = application
                     .as_mapping_mut()
                     .ok_or("php.application must be a mapping")?;
+                #[cfg(feature = "bench")]
+                {
+                    let env =
+                        application.entry("env".into()).or_insert_with(|| {
+                            serde_yaml::Value::Mapping(Default::default())
+                        });
+                    env.as_mapping_mut()
+                        .ok_or("php.application.env must be a mapping")?
+                        .entry("LUMENIZE_BENCH".into())
+                        .or_insert_with(|| {
+                            serde_yaml::Value::String("1".into())
+                        });
+                }
                 if !application.contains_key("script_path") {
                     let entry = if root.join("application.php").try_exists()? {
                         PathBuf::from("application.php")

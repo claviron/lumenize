@@ -214,3 +214,18 @@ Flash retains ordinary Laravel aging and the configured Laravel serialization.
 The default PHP-serialized payload is not directly shared with Rust. Laravel's
 optional `session.serialization=json` can provide a readable representation,
 but coordinating Rust writes/flash consumption is a separate application concern.
+
+## Persistent Laravel benchmarks
+
+`Lumenize\Http\Controllers\BenchController` provides opt-in `plain`, `json`,
+`echo` and `state` actions. Register them on stateless API routes when measuring
+Laravel; do not put session middleware in a minimal framework baseline.
+The controller requires the context produced by `Lumenize\Octane\ClavironClient`
+and rejects ordinary script requests. Response headers report the application
+mode, persistent boot ID, request count and process ID. Repeated requests with
+one boot ID and increasing counts verify that the application stays booted.
+
+The Rust `bench` feature supplies `LUMENIZE_BENCH=1` to the application environment
+unless the application explicitly overrides it. The application still owns route
+registration. Native Rust benchmark routes and Laravel controller routes should
+use distinct URLs so an interceptor cannot silently answer the PHP measurement.
