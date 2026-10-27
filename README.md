@@ -14,7 +14,7 @@ It uses this repository's PHP and Rust packages directly; no release is required
 Install the PHP adapters in your application:
 
 ```sh
-composer require claviron/laravel:0.1.0
+composer require claviron/laravel:0.1.2
 ```
 
 Composer installs the Laravel integration and its `claviron/sapi` dependency.
