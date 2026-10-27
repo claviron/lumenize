@@ -5,7 +5,7 @@
   "type": "library",
   "license": "MIT",
   "require": {
-    "claviron/sapi": "0.1.1",
+    "claviron/sapi": "^0.1.1",
     "illuminate/auth": "^11.0 || ^12.0 || ^13.0",
     "illuminate/broadcasting": "^11.0 || ^12.0 || ^13.0",
     "illuminate/cache": "^11.0 || ^12.0 || ^13.0",
