@@ -279,6 +279,11 @@ The connection's Laravel name is preserved so model writes remain in its
 transaction. Ambiguous commit failures are propagated, never automatically
 replayed. MySQL errno and SQLSTATE survive the PHP exception boundary.
 
+MySQL and PostgreSQL separate the native COMMIT/retry phase from transaction-manager
+callbacks and the `committed` event. A post-commit exception propagates unchanged
+without replaying the completed closure or changing a transaction opened by the
+callback. Native COMMIT deadlocks retain the existing rollback/retry policy.
+
 Connection/session options come from the named `db.yaml` pool, not Laravel's
 PDO options: match charset, collation, timezone and SQL mode before opting a
 consumer in. Decimal results remain strings. The first MySQL implementation

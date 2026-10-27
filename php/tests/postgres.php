@@ -22,11 +22,18 @@ namespace Lumenize\Database {
     {
         public static bool $transaction = false;
         public static array $calls = [];
+        public static ?string $failure = null;
+        public static ?string $commitFailure = null;
+        public static bool $failCommit = false;
     }
 
     function claviron_postgres_execute($handle, $sql, $parameters = []): array
     {
         Backend::$calls[] = [$sql, $parameters];
+        if ($failure = Backend::$failure) {
+            Backend::$failure = null;
+            throw new RuntimeException($failure);
+        }
 
         return ['columns' => [['name' => 'value']], 'rows' => [[1]], 'affected_rows' => 0];
     }
@@ -45,7 +52,14 @@ namespace Lumenize\Database {
     function claviron_postgres_commit($handle): bool
     {
         Backend::$calls[] = ['COMMIT'];
+        if ($failure = Backend::$commitFailure) {
+            Backend::$commitFailure = null;
+            throw new RuntimeException($failure);
+        }
         Backend::$transaction = false;
+        if (Backend::$failCommit) {
+            throw new RuntimeException('server closed the connection unexpectedly');
+        }
 
         return true;
     }
@@ -137,5 +151,7 @@ namespace Lumenize\Database {
     check($db->transactionLevel() === 0, 'Native request cleanup left stale PHP bookkeeping');
     $db->disconnect();
 
-    echo "PASS: PostgreSQL disconnect, next-query transaction ownership, savepoints, callbacks and repeated operations\n";
+    require_once __DIR__.'/fixtures/commits.php';
+    checkCommitBoundaries($db);
+    echo "PASS: PostgreSQL disconnect, next-query transaction ownership, savepoints, callbacks, retries and repeated operations\n";
 }

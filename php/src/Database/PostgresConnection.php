@@ -342,12 +342,15 @@ final class PostgresConnection extends IlluminatePostgresConnection
             }
 
             try {
-                $this->commit();
+                $level = $this->commitNativeTransaction();
             } catch (Throwable $exception) {
                 $this->handleCommitTransactionException($exception, $attempt, $attempts);
 
                 continue;
             }
+
+            // Callback/event failures happen after COMMIT and cannot retry it.
+            $this->completeCommit($level);
 
             return $result;
         }
@@ -382,12 +385,23 @@ final class PostgresConnection extends IlluminatePostgresConnection
 
     public function commit()
     {
+        $this->completeCommit($this->commitNativeTransaction());
+    }
+
+    private function commitNativeTransaction(): int
+    {
         if ($this->transactions === 1) {
             $this->fireConnectionEvent('committing');
             claviron_postgres_commit($this->nativeConnection);
         }
 
         [$level, $this->transactions] = [$this->transactions, max(0, $this->transactions - 1)];
+
+        return $level;
+    }
+
+    private function completeCommit(int $level): void
+    {
         $this->transactionsManager?->commit($this->getName(), $level, $this->transactions);
         $this->fireConnectionEvent('committed');
     }

@@ -24,6 +24,7 @@ namespace Lumenize\Database {
         public static bool $transaction = false;
         public static array $calls = [];
         public static ?string $failure = null;
+        public static ?string $commitFailure = null;
         public static bool $failCommit = false;
     }
 
@@ -48,6 +49,10 @@ namespace Lumenize\Database {
     function claviron_mysql_commit($handle): bool
     {
         Backend::$calls[] = ['COMMIT'];
+        if ($failure = Backend::$commitFailure) {
+            Backend::$commitFailure = null;
+            throw new RuntimeException($failure);
+        }
         Backend::$transaction = false;
         if (Backend::$failCommit) {
             throw new RuntimeException('Lost connection to MySQL server during query');
@@ -153,5 +158,7 @@ namespace Lumenize\Database {
     $db->disconnect();
     check(!$db->transactionLevel() && $db->getLastInsertId() === null, 'disconnect retained request state');
     check($db->selectOne('SELECT 1')->credit === '123456789012345678.123456', 'disconnected adapter tried to reconnect PDO');
+    require_once __DIR__.'/fixtures/commits.php';
+    checkCommitBoundaries($db);
     echo "PASS: MySQL Laravel adapter, native IDs/types, nested transactions, callbacks, retries and ambiguous commit\n";
 }
