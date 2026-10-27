@@ -5,7 +5,7 @@ It uses the root library's independent `cli` feature, without selecting its
 HTTP `runner`, supervisor, listeners or Orbit composition.
 
 ```sh
-cargo install lumenize-cli --version 0.2.0-alpha.19
+cargo install lumenize-cli --version 0.2.0-alpha.20 --locked
 # From a Laravel project root:
 lumenize list
 lumenize migrate --pretend

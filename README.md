@@ -14,7 +14,7 @@ It uses this repository's PHP and Rust packages directly; no release is required
 Install the PHP adapters in your application:
 
 ```sh
-composer require claviron/laravel:0.1.2
+composer require claviron/laravel:0.1.3
 ```
 
 Composer installs the Laravel integration and its `claviron/sapi` dependency.
@@ -111,7 +111,7 @@ of composing its own Edge. The downstream application still owns its `main.rs`.
 See the [Runner guide](docs/runner/README.md) for socket/Orbit ingress, routing and workers.
 
 ```toml
-lumenize = { version = "0.2.0-alpha.19", features = ["runner", "cli", "axum"] }
+lumenize = { version = "0.2.0-alpha.20", features = ["runner", "cli", "axum"] }
 ```
 
 `runner` and `cli` are independent. `cli` alone provides `lumenize::cli::run()`
