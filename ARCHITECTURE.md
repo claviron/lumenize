@@ -323,6 +323,18 @@ paths as ordinary PHP. Cache and database adapters check
 the engine-presence marker alone cannot select a prepared host. Once host
 bindings are prepared, missing native features or resources still fail explicitly.
 
+## Cache value encoding
+
+`Cache\Store` keeps ordinary scalars and arrays native. Objects and strings
+beginning with its reserved object marker use that marker followed by PHP
+serialization. A marker-prefixed string is serialized as a string, so decoding
+one layer returns its exact bytes without interpreting its contents as objects.
+The existing object wire format and existing readers remain compatible.
+
+Previously stored, unescaped marker-prefixed strings are indistinguishable from
+serialized envelopes. Expire or rewrite affected keys through the updated codec
+when their original literal value is known.
+
 ## Cache-backed sessions
 
 The PHP package registers a Laravel session driver named `claviron`. It is a

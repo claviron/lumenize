@@ -31,10 +31,10 @@ final class Store implements StoreContract, LockProvider
     private \Claviron\Runtime\CacheHandle $cache;
 
     /**
-     * Laravel's stores `serialize()` every value. This one keeps scalars and
-     * arrays native, so a Rust reader of the same store sees numbers, strings
-     * and JSON; only objects — a model out of `Cache::remember()` — are
-     * serialized, behind a marker `get()` recognises.
+     * Laravel's stores `serialize()` every value. Here ordinary scalars and
+     * arrays remain native for other runtime readers. Objects and strings
+     * beginning with the reserved marker are serialized behind that marker;
+     * `get()` decodes exactly one layer.
      */
     private const OBJECT = "\0claviron:object\0";
 
@@ -142,7 +142,12 @@ final class Store implements StoreContract, LockProvider
 
     private static function encode(mixed $value): mixed
     {
-        return is_object($value) ? self::OBJECT.serialize($value) : $value;
+        if (is_object($value)
+            || (is_string($value) && str_starts_with($value, self::OBJECT))) {
+            return self::OBJECT.serialize($value);
+        }
+
+        return $value;
     }
 
     private static function decode(mixed $value): mixed
