@@ -153,5 +153,7 @@ namespace Lumenize\Database {
 
     require_once __DIR__.'/fixtures/commits.php';
     checkCommitBoundaries($db);
+    require_once __DIR__.'/fixtures/cleanup.php';
+    checkNativeTransactionCleanup($db);
     echo "PASS: PostgreSQL disconnect, next-query transaction ownership, savepoints, callbacks, retries and repeated operations\n";
 }

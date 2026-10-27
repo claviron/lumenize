@@ -435,6 +435,7 @@ final class PostgresConnection extends IlluminatePostgresConnection
     {
         if ($this->transactions > 0 && !claviron_postgres_in_transaction($this->nativeConnection)) {
             $this->transactions = 0;
+            $this->transactionsManager?->rollback($this->getName(), 0);
         }
 
         return $this->transactions;

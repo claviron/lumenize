@@ -284,6 +284,12 @@ callbacks and the `committed` event. A post-commit exception propagates unchange
 without replaying the completed closure or changing a transaction opened by the
 callback. Native COMMIT deadlocks retain the existing rollback/retry policy.
 
+When native cleanup has rolled back abandoned work, MySQL/PostgreSQL
+`transactionLevel()` clears both the stale nesting count and that connection's
+pending/staged transaction-manager callbacks. `beginTransaction()` reconciles
+this before registering the next transaction. New callbacks and records owned
+by other connections remain intact; reconciliation issues no extra rollback SQL.
+
 Connection/session options come from the named `db.yaml` pool, not Laravel's
 PDO options: match charset, collation, timezone and SQL mode before opting a
 consumer in. Decimal results remain strings. The first MySQL implementation

@@ -224,6 +224,7 @@ final class MySqlConnection extends IlluminateMySqlConnection
     {
         if ($this->transactions > 0 && !claviron_mysql_in_transaction($this->nativeConnection)) {
             $this->transactions = 0;
+            $this->transactionsManager?->rollback($this->getName(), 0);
         }
 
         return $this->transactions;

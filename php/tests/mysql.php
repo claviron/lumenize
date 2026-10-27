@@ -160,5 +160,7 @@ namespace Lumenize\Database {
     check($db->selectOne('SELECT 1')->credit === '123456789012345678.123456', 'disconnected adapter tried to reconnect PDO');
     require_once __DIR__.'/fixtures/commits.php';
     checkCommitBoundaries($db);
+    require_once __DIR__.'/fixtures/cleanup.php';
+    checkNativeTransactionCleanup($db);
     echo "PASS: MySQL Laravel adapter, native IDs/types, nested transactions, callbacks, retries and ambiguous commit\n";
 }
