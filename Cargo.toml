@@ -67,7 +67,7 @@ members = ["cli", "examples/laravel"]
 default-members = ["."]
 
 [workspace.package]
-version = "0.2.0-alpha.20"
+version = "0.2.0-alpha.24"
 publish = true
 edition = "2024"
 license = "MIT"
@@ -76,8 +76,8 @@ repository = "https://github.com/claviron/lumenize.git"
 
 [workspace.dependencies]
 # Public Claviron facade only; framework adapters never become core dependencies.
-claviron = { path = "../claviron", version = "0.2.0-alpha.23", default-features = false }
-lumenize = { path = ".", version = "0.2.0-alpha.20", default-features = false }
+claviron = { version = "0.2.0-alpha.24", default-features = false }
+lumenize = { path = ".", version = "0.2.0-alpha.24", default-features = false }
 arc-swap = "1.9"
 async-trait = "0.1"
 clap = { version = "4", features = ["derive"] }
