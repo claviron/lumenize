@@ -152,13 +152,8 @@ impl Options {
     pub fn from_args() -> crate::Result<Self> {
         use clap::Parser;
         // Re-exec workers receive the launch and do not reopen a default file.
-        if let claviron::supervisor::ProcessEntry::Worker(worker) =
-            claviron::supervisor::ProcessEntry::detect()?
-        {
-            return Ok(serde_json::from_slice::<Launch>(
-                worker.launch().as_bytes(),
-            )?
-            .into());
+        if let Some(launch) = claviron::runner::worker_launch()? {
+            return Ok(Launch::into(launch));
         }
         #[derive(Parser)]
         #[command(
@@ -185,7 +180,7 @@ impl Configuration {
         root: &Path,
     ) -> crate::Result<Vec<String>> {
         use crate::PhpRunner;
-        use claviron::ephp::framework::ComposerPackages;
+        use claviron_php::embed::framework::ComposerPackages;
 
         // Explicit selection does not depend on readable Composer metadata.
         let packages = if self.request_mode.is_none() {
@@ -273,7 +268,7 @@ impl Configuration {
     pub(crate) fn script_route(
         &self,
         state: &claviron::runtime::AppState,
-    ) -> claviron::runtime::registry::Result<claviron::php::PhpConfig> {
+    ) -> claviron::runtime::registry::Result<claviron_php::PhpConfig> {
         use claviron::runtime::registry;
         let value =
             self.php.get("script").cloned().unwrap_or_else(|| {
@@ -284,7 +279,7 @@ impl Configuration {
         })?;
         route.entry("runner".into()).or_insert("script".into());
         route.entry("entry_script".into()).or_insert("index.php".into());
-        let route: claviron::php::PhpConfig = expand(state, &route.into())?;
+        let route: claviron_php::PhpConfig = expand(state, &route.into())?;
         if route.runner != crate::PhpRunner::Script {
             return Err(registry::Error::msg(
                 "php.script.runner must be script",
@@ -358,7 +353,7 @@ impl Configuration {
         };
         match mode {
             crate::PhpRunner::Application => {
-                claviron::ephp::register_application_from_yaml(
+                claviron_php::embed::register_application_from_yaml(
                     state,
                     application,
                     &yaml,
@@ -366,7 +361,7 @@ impl Configuration {
                 )?
             }
             crate::PhpRunner::Script => {
-                claviron::ephp::register_script_from_yaml(
+                claviron_php::embed::register_script_from_yaml(
                     state,
                     application,
                     &yaml,
@@ -444,11 +439,11 @@ impl Configuration {
             }
             let mut document = serde_yaml::Mapping::new();
             document.insert("applications".into(), applications.into());
-            let config = expand::<claviron::broadcast::BroadcastConfig>(
+            let config = expand::<claviron_broadcast::BroadcastConfig>(
                 state,
                 &document.into(),
             )?;
-            claviron::broadcast::register_with_config(state, config)?;
+            claviron_broadcast::register_with_config(state, config)?;
             if self.broadcasting.is_some() {
                 use crate::broadcast::LaravelBroadcastProvider;
                 use claviron::runtime::Register;

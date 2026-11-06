@@ -3,7 +3,7 @@
 use std::collections::BTreeMap;
 use std::path::{Path, PathBuf};
 
-use claviron::ephp::console::PhpConsole;
+use claviron_php::embed::console::PhpConsole;
 use tokio_util::sync::CancellationToken;
 
 /// Run the application's own `artisan` entry in its working directory.

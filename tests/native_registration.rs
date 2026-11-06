@@ -1,6 +1,6 @@
 use std::sync::Arc;
 
-use claviron::ephp::extension::{FunctionEntries, PhpEmbedExtension};
+use claviron_php::embed::extension::{FunctionEntries, PhpEmbedExtension};
 use lumenize::broadcast::BroadcastExtension;
 
 #[path = "support/native_runtime.rs"]

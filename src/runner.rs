@@ -1,7 +1,7 @@
 use std::sync::Arc;
 
-use claviron::Server;
-use claviron::runner::{Owner, launch};
+use claviron::orbit::link::application::LINK_INBOX_CAPACITY;
+use claviron::runner::{Composition, Owner};
 use claviron::runtime::{AppState, Register, registry};
 
 use crate::Options;
@@ -128,7 +128,6 @@ impl Runner {
             .name
             .clone()
             .unwrap_or_else(|| self.application.clone());
-        claviron::orbit::transport::segment::check_application_name(&name)?;
         // The application restarts inside its process; with workers each has
         // its own, and the master that watches has none.
         #[cfg(feature = "watch")]
@@ -140,107 +139,75 @@ impl Runner {
             );
         }
         let system_log = self.options.system_log()?;
-        let config_dir = self
-            .options
-            .config_path
-            .parent()
-            .filter(|path| !path.as_os_str().is_empty())
-            .unwrap_or_else(|| std::path::Path::new("."))
-            .to_path_buf();
-        let production = self.options.runner.production;
-        let environment = self.options.runner.environment.clone();
-        let mut launch = Launch::from(self.options);
-        let prepared = launch.prepare(name)?;
+        let config_path = self.options.config_path.clone();
+        let launch = Launch::from(self.options);
         let application = self.application;
-        let definitions = launch.clone();
         let definition_name = application.clone();
-        // Production only by `--production`; otherwise `--environment`, and
-        // without either, `local`.
-        let server = match (production, environment) {
-            (true, _) => Server::new().production(),
-            (false, Some(environment)) => {
-                Server::new().environment(environment)
-            }
-            (false, None) => Server::new(),
-        };
-        server
-            .name(prepared.name.clone())
-            .fleet_name(prepared.fleet_name)
-            .workers(prepared.workers)
-            .launch(prepared.envelope)
-            .config_dir(config_dir)
-            .system_log(system_log)
-            .with_definitions(move |state| {
-                let definitions = definitions.inherited(state)?;
-                claviron::runner::supervisor::register_policy(
-                    state,
-                    definitions.runner.supervisor.clone().unwrap_or_default(),
-                )?;
-                definitions.own.register(
-                    state,
-                    &definition_name,
-                    definitions.runner.frameworks.clone().unwrap_or_default(),
-                    definitions.runner.icon.clone(),
-                )
-            })
-            .register(move |state| {
-                // A worker serves what its master resolved.
-                let launch = launch.inherited(state)?;
-                let runner = &launch.runner;
-
-                // The owner, then what stands in front of it, then the
-                // application's own registrations, which compose in front.
-                let php = PhpService::new();
-                let script = if launch.own.request_mode
-                    == Some(crate::PhpRunner::Script)
-                {
+        let owner_name = application.clone();
+        // Bounded by the lane's own capacity unless the launch says otherwise:
+        // work beyond it waits in the lane, where the edge sees it.
+        Composition::new(launch, name, PHP_RUNTIME, move |state, launch| {
+            let php = PhpService::new();
+            let script =
+                if launch.own.request_mode == Some(crate::PhpRunner::Script) {
                     Some(launch.own.script_route(state)?)
                 } else {
                     None
                 };
-                state.registry_ref().register(Arc::new(PhpOwner::new(
-                    application.clone(),
-                    php.clone(),
-                    script,
-                )))?;
-                claviron::runner::register_owner(state, Owner::new(php))?;
+            state.registry_ref().register(Arc::new(PhpOwner::new(
+                owner_name,
+                php.clone(),
+                script,
+            )))?;
+            let owner = Owner::new(php);
+            // A Pusher client's channels stand in front of the application.
+            #[cfg(feature = "broadcast")]
+            let owner = claviron_broadcast::runner::in_front(state, owner)?;
+            Ok(owner)
+        })
+        .default_in_flight(Some(LINK_INBOX_CAPACITY))
+        .config_path(&config_path)
+        .system_log(system_log)
+        .definitions(move |state, launch| {
+            launch.own.register(
+                state,
+                &definition_name,
+                launch.runner.frameworks.clone().unwrap_or_default(),
+                launch.runner.icon.clone(),
+            )?;
+            claviron_php::register(state)
+        })
+        .configure(move |state, _| {
+            #[cfg(feature = "bench")]
+            claviron::bench::runner::BenchService::register(state)?;
+            for register in registrations {
+                register(state)?;
+            }
+            #[cfg(feature = "axum")]
+            if let Some(interceptor) = interceptor {
+                interceptor(state)?;
+            }
+            Ok(())
+        })
+        .settled(move |state, launch| {
+            #[cfg(feature = "watch")]
+            if launch.runner.watch {
                 let root = std::env::current_dir()
                     .map_err(|error| registry::Error::msg(error.to_string()))?;
-                launch::register_routing(state, runner, &root)?;
-                #[cfg(feature = "bench")]
-                claviron::bench::runner::BenchService::register(state)?;
-                for register in registrations {
-                    register(state)?;
-                }
-                #[cfg(feature = "axum")]
-                if let Some(interceptor) = interceptor {
-                    interceptor(state)?;
-                }
-                claviron::runner::ensure_application(state)?;
-                launch::register_trust(state, runner)?;
-
-                #[cfg(feature = "watch")]
-                if runner.watch {
-                    let watcher = crate::watch::watcher(
-                        root,
-                        runner.watch_paths.clone(),
-                        application.clone(),
-                    )
-                    .map_err(registry::Error::msg)?;
-                    state.registry_ref().register(Arc::new(watcher))?;
-                }
-                // Bounded by the lane's own capacity unless the launch says
-                // otherwise: work beyond it waits in the lane, where the edge
-                // sees it.
-                launch::register_doors(
-                    state,
-                    runner,
-                    PHP_RUNTIME,
-                    Some(claviron::orbit::transport::TRANSPORT_INBOX_CAPACITY),
+                let watcher = crate::watch::watcher(
+                    root,
+                    launch.runner.watch_paths.clone(),
+                    application,
                 )
-            })
-            .serve()
-            .await?;
+                .map_err(registry::Error::msg)?;
+                state.registry_ref().register(Arc::new(watcher))?;
+            }
+            #[cfg(not(feature = "watch"))]
+            let _ = (state, launch, application);
+            Ok(())
+        })
+        .serve()
+        .await?;
         Ok(())
     }
 }

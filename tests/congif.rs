@@ -1,6 +1,6 @@
 use super::{LaravelConfigParser, config_value};
 use claviron::congif::{ConfigParser, ConfigValue, Variables};
-use claviron::ephp::evaluate::{PhpArrayKey, PhpValue};
+use claviron_php::embed::evaluate::{PhpArrayKey, PhpValue};
 
 #[test]
 fn php_source_is_not_text_interpolated() {

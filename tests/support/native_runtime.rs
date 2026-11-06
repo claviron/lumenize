@@ -5,14 +5,14 @@ use std::collections::HashMap;
 use std::path::Path;
 use std::sync::Arc;
 
-use claviron::ephp::extension::{PhpEmbedExtension, register_extension};
-use claviron::ephp::{
+use claviron::runtime::registry::Runnable;
+use claviron::runtime::{AppState, RunContext, RunMode};
+use claviron_php::embed::extension::{PhpEmbedExtension, register_extension};
+use claviron_php::embed::{
     PhpEmbedRuntime, PhpEmbedStateExt, PhpSapiRequest, PhpScriptService,
     RequestPool,
 };
-use claviron::php::{PhpRunner, PhpRuntime};
-use claviron::runtime::registry::Runnable;
-use claviron::runtime::{AppState, RunContext, RunMode};
+use claviron_php::{PhpRunner, PhpRuntime};
 use http::Request;
 use http_body_util::BodyExt;
 use tokio_util::sync::CancellationToken;
@@ -77,8 +77,6 @@ pub async fn run_fixture(
         execution_environment: Default::default(),
         php_runner: PhpRunner::Script,
         application: None,
-        requests: Default::default(),
-        responses: Default::default(),
         server_run_mode: RunMode::Standalone,
         server_worker_count: 1,
         server_hostname: "app.test".to_owned(),
@@ -89,7 +87,6 @@ pub async fn run_fixture(
         let request = PhpSapiRequest {
             script_name: "/index.php".to_owned(),
             script_file: script.clone(),
-            document_root: root.path().to_path_buf(),
             document_uri: "/index.php".to_owned(),
             request_uri: "/index.php".to_owned(),
             query_string: String::new(),
@@ -103,7 +100,6 @@ pub async fn run_fixture(
                     .extension(claviron::http::policy::HttpPolicy::unlimited())
                     .body(claviron::http::empty_body())
                     .unwrap(),
-                None,
             )
             .await
             .unwrap();

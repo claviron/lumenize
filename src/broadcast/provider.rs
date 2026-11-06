@@ -1,7 +1,7 @@
 use std::sync::Arc;
 
-use claviron::ephp::extension::register_extension;
 use claviron::runtime::{AppState, Register, registry};
+use claviron_php::embed::extension::register_extension;
 
 use super::BroadcastExtension;
 

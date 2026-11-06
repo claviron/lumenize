@@ -8,14 +8,14 @@ use std::sync::{Arc, OnceLock};
 use std::task::{Context, Poll};
 
 use async_trait::async_trait;
-use claviron::ephp::{
-    PhpApplicationAdapter, PhpApplicationService, PhpScriptAdapter,
-    PhpScriptService,
-};
 use claviron::http::RouteResponse;
 use claviron::runner::AppRequest;
 use claviron::runtime::registry::{self, Bootable};
 use claviron::runtime::{AppState, Component};
+use claviron_php::embed::{
+    PhpApplicationAdapter, PhpApplicationService, PhpScriptAdapter,
+    PhpScriptService,
+};
 use http_body_util::BodyExt;
 use tower::Service;
 
@@ -70,14 +70,14 @@ impl Service<AppRequest> for PhpService {
 pub(crate) struct PhpOwner {
     name: String,
     php: PhpService,
-    script: Option<claviron::php::PhpConfig>,
+    script: Option<claviron_php::PhpConfig>,
 }
 
 impl PhpOwner {
     pub(crate) fn new(
         name: String,
         php: PhpService,
-        script: Option<claviron::php::PhpConfig>,
+        script: Option<claviron_php::PhpConfig>,
     ) -> Self {
         Self { name, php, script }
     }
@@ -103,7 +103,7 @@ impl Component<AppState> for PhpOwner {
     ) -> registry::Result<()> {
         let runtime = state
             .registry_ref()
-            .resolve::<claviron::ephp::PhpEmbedRuntime>()
+            .resolve::<claviron_php::embed::PhpEmbedRuntime>()
             .ok_or_else(|| {
                 registry::Error::msg("PHP runtime was not registered")
             })?;
@@ -135,7 +135,7 @@ impl Bootable<AppState, <Self as Component<AppState>>::Deps> for PhpOwner {
             })?;
             let root = std::env::current_dir()
                 .map_err(|error| registry::Error::msg(error.to_string()))?;
-            let runtime = claviron::php::PhpRuntime::from_config(
+            let runtime = claviron_php::PhpRuntime::from_config(
                 state,
                 config,
                 root.join("public"),

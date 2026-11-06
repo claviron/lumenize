@@ -7,7 +7,7 @@ use std::path::{Path, PathBuf};
 use claviron::congif::{
     BoxError, ConfigParser, ConfigSource, ConfigValue, Variables, async_trait,
 };
-use claviron::ephp::evaluate::{
+use claviron_php::embed::evaluate::{
     PhpArrayKey, PhpBootstrap, PhpEvaluator, PhpValue,
 };
 
