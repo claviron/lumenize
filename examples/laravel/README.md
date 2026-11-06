@@ -14,14 +14,14 @@ an unrelated system PHP: the host and its PHP extensions must match.
 From this directory:
 
 ```sh
-cp .env.example .env
 "$PHP" /path/to/composer.phar install
 "$PHP" artisan migrate --seed
 ```
 
 If Composer is installed as a PHP executable, pass its path instead of
 `/path/to/composer.phar`. The sample app key is public and for local use only;
-`"$PHP" artisan key:generate` replaces it in your ignored `.env` if needed.
+`"$PHP" artisan key:generate` can replace it for private local use. The included
+`.env` contains shareable demo values; do not commit a private replacement key.
 
 The first migration creates `database/database.sqlite` through Laravel. This
 is this example's own local database, not a shared Liberum database. Laravel's
@@ -36,7 +36,7 @@ Migrations run only when you ask, never during HTTP startup. Seeding is repeatab
 From this same directory:
 
 ```sh
-cargo run --package lumenize-laravel-example
+cargo run --package laravel-example
 ```
 
 Open <http://127.0.0.1:8000>. The first run compiles the small native launcher;

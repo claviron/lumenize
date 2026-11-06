@@ -10,10 +10,10 @@ dependencies = []
 package = false
 
 # Export only this repository's committed PHP sources; not a Python package.
-[tool.lumenize.composer]
+[tool.packagist]
 state-directory = "target/composer"
 
-[[tool.lumenize.composer.packages]]
+[[tool.packagist.packages]]
 name = "claviron/laravel"
 remote = "git@github.com:claviron/laravel.git"
 directory = "php"

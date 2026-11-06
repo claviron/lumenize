@@ -180,98 +180,6 @@ supervisor and is selected by `workers`.
   property of the same-host transport. Multiple HTTP virtual hosts in an edge
   application do not imply cross-machine shared memory.
 
-## Configuration boundary
-
-`lumenize.yaml` is the typed composition entry. Reuse the runtime's
-public configuration types and loading contracts. Laravel's PHP configuration
-continues to own routes, middleware, authentication and business settings;
-booting Laravel to discover Rust boot dependencies would reverse that order.
-PHP YAML parsing and environment resolution stay in Claviron; Lumenize does not
-maintain a second PHP schema.
-
-`Options.config_path` selects one file (default `lumenize.yaml`); there is no
-public `config_dir` option. The runner sets `AppState::config_dir()` to the
-selected file's parent directory (`.` for a bare filename). Application-owned
-configuration sources use this state value; PHP paths remain relative to the
-application's working directory. Workers inherit the same configuration directory.
-The flat common runner keys sit beside `php`,
-`broadcasting`, `logging`, `cache`, `database`, and `config_parser`. They include
-`assets: [build, images]` and opt-in `try_files` (default false).
-With the `files` feature, these use the shell's existing static mounts and
-public-file probe; they create no separate asset configuration or service.
-`php.application` supplies one application whose
-name is `Runner::new(...)`, without a repeated application catalog key.
-The existing embed schema validates that section. Omitted `script_path` selects
-the project's `application.php` when present, otherwise the package-shipped
-Octane entry. Script mode has no persistent application definition; the embed
-runtime names its sole request pool through `script_application` and reports its
-real lifecycle through the same PHP controller. Its commands use the existing
-ServiceManager for `PhpSapiService`; there is no second pool or lifecycle manager.
-Unselected entry sections are rejected rather than ignored. `broadcasting` is the existing
-single application's catalog entry, with its ID defaulting to the application
-name; its key and secret remain explicit. `logging.path` is a single system-log
-shorthand, or `logging.system_log` and `logging.channels` use the existing
-logging policies. There is no Edge access-log registration here.
-
-Native PHP broadcasting is installed through Lumenize's
-`LaravelBroadcastProvider::register(state)`, without a fixed publisher identity.
-PHP sends its selected Laravel connection's key; Broadcast resolves the existing
-catalog application. Laravel default/explicit connection selection stays PHP-owned.
-The matching PHP package and host must be deployed together when the native
-function signature changes.
-
-The runner always installs `LaravelConfigParser` on the shared ConfigReader
-after declaring the process PHP INI and before any configuration preparation.
-Owners can use `Format::Custom("php")` for returned PHP arrays, including
-Laravel helper calls, with no application-local parser registration. The package
-runner at `vendor/claviron/laravel/runners/config.php` uses the consumer's Composer
-autoload; evaluation does not boot its HTTP loop or Laravel service providers.
-`config_parser.max_depth` bounds returned array nesting (default 64).
-
-`cache` reuses Claviron's `CacheConfig` store/driver schema. Omission or an empty
-section creates no stores, without consulting `cache.yaml`. The cache registers
-before default composition and builds after all custom driver registrations,
-before cache-dependent services boot. It is immutable launch intent like PHP;
-changes require process restart.
-
-`database` reuses Claviron's existing `DbFileConfig` and is selected through
-`postgres`, `mysql` or `sqlite` (each enables `db`). Unresolved YAML remains in
-the inherited launch just like other runtime sections; each process expands
-it against its own boot environment and passes the typed value to
-`claviron::db::register_with_config` in the definitions phase. This suppresses
-the server's separate `db.yaml` registration. `DbService` builds process-local
-pools in ordered boot before the PHP runtime resolves its DB dependency.
-Omission creates no native connections. These options are immutable launch
-intent, not a config watcher/reload owner or an edge pool. Native PostgreSQL
-and MySQL PHP bridges use those runner pools; SQLite is a native Rust pool
-capability, not an additional PHP database adapter. A configured but unselected
-backend is refused rather than silently ignored.
-
-Explicit definitions are installed through `Server::with_definitions` before
-built-in defaults; those defaults retain the supplied PHP runtime, broadcast
-catalog and log channels without opening separate files. Ordinary application
-registrations still run after built-in registration. Runtime sections are
-immutable boot intent and require restart after changes. Source watching remains
-the separate PHP-source restart API.
-
-The launch's supervisor policy is also installed in this definitions phase,
-before Claviron constructs its supervisor consumers. An omitted `supervisor`
-section uses the supervisor's existing defaults. Installing that source later
-would disable file preparation without initializing the consumers' supplied
-snapshots; supervised launches must never enter that state.
-
-The CLI's `--config-path` selects the file and its runner flags override written
-values. `Runner::new(...)` supplies the default instance name; `fleet_name` and
-`--fleet-name` independently select the process-family namespace. A worker
-inherits the launch and file identity rather than reopening a default file.
-Unresolved environment expressions travel unchanged and use each process's
-prepared boot environment; resolved secrets are not copied into the launch.
-
-Process identity, Laravel profile identity and Orbit fleet identity have
-different owners. Fleet validation and transport protocol changes must land in
-the common runtime before a downstream launch depends on them. Do not assign
-new ring kinds or copy the transport into the runner to create isolation.
-
 ## The runner shell
 
 Everything a runner does alike is Claviron's runner shell (`claviron_runner`,
@@ -302,3 +210,13 @@ management from the shell's `launch::register_doors`; Lumenize registers no
 duplicate command bridge. The shared PHP engine's `ApplicationController`
 remains authoritative for start/stop/restart and lifecycle snapshots. Stopping
 the PHP application does not stop its runner or disconnect its Link lane.
+
+### Benchmark execution identity
+
+With `bench`, application preparation sets the default `LUMENIZE_BENCH=1` in the
+prepared PHP environment; an explicit value is retained. The opt-in PHP
+`Http\Controllers\BenchController` consumes the existing Octane client's
+request context. It emits that context's boot ID and increasing request count
+and fails when persistent-client context is absent. It owns no native service,
+session or database access. Applications register its actions separately from
+the native Rust benchmark routes.

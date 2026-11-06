@@ -14,7 +14,7 @@ Stop the example's current dev runner first. From `examples/laravel`, start it
 with one additional option:
 
 ```sh
-cargo run --package lumenize-laravel-example -- --orbit
+cargo run --package laravel-example -- --orbit
 ```
 
 The existing `lumenize.yaml` supplies application name `laravel-example` and
