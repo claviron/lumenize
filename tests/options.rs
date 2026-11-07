@@ -62,7 +62,7 @@ fn a_flat_file_divides_and_a_typo_is_refused() {
 #[test]
 fn a_launch_survives_the_envelope() {
     let mut sent: Launch = serde_yaml::from_str(
-        "orbit: true\nfleet_name: example\nworkers: 2\nrequest_mode: application\nrequests:\n  head_timeout: 60s\nconfig_path: deployment.yaml\nphp: {application: {script_path: application.php}}\nlogging: {path: logs/system.log}\nbroadcasting: {key: '${APP_KEY}', secret: '${APP_SECRET}'}\n",
+        "orbit: true\nfleet_name: example\nworkers: 2\nrequest_mode: application\nrequests:\n  queue_timeout: 60s\nconfig_path: deployment.yaml\nphp: {application: {script_path: application.php}}\nlogging: {path: logs/system.log}\nbroadcasting: {key: '${APP_KEY}', secret: '${APP_SECRET}'}\n",
     )
     .unwrap();
     let prepared = sent.prepare("example-app".into()).unwrap();
@@ -76,7 +76,7 @@ fn a_launch_survives_the_envelope() {
     assert_eq!(back.own.broadcasting.unwrap()["secret"], "${APP_SECRET}");
     assert_eq!(back.own.logging.unwrap()["path"], "logs/system.log");
     assert_eq!(
-        back.runner.policy().unwrap().requests.head_timeout,
+        back.runner.policy().unwrap().requests.queue_timeout,
         Some(std::time::Duration::from_secs(60))
     );
 }

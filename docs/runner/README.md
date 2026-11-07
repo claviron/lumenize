@@ -378,8 +378,9 @@ and an explicit mount at the same prefix retains its policy.
 - `max_concurrent_requests` is a positive count or `off`; omission is unbounded.
   A single Claviron `Admission` is shared by all ingress paths and connections.
   `requests.queue_timeout` bounds admission waiting (503 on expiry), and
-  `requests.head_timeout` bounds time to the response head (504 on expiry).
-  The permit is released at the head; streaming replies retain their body policy.
+  `responses.idle_timeout` bounds each gap in the reply, the one before its head
+  included. The permit is released at the head; streaming replies retain their
+  body policy.
 - Keep Unix sockets on a host-local filesystem, outside a shared checkout.
 - Persistent PHP uses the shared receive/respond protocol and Laravel Octane
   isolation. The current shared PHP service buffers the incoming request body
