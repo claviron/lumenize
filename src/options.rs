@@ -83,10 +83,20 @@ impl From<Options> for Launch {
 
 impl Options {
     pub fn from_file(path: impl AsRef<Path>) -> crate::Result<Self> {
-        let path = path.as_ref();
-        let mut options: Self =
-            serde_yaml::from_str::<Launch>(&std::fs::read_to_string(path)?)?
-                .into();
+        Self::read(path.as_ref(), &RunnerOptions::default())
+    }
+
+    /// The launch file with `${NAME}` expanded from `.env` and the
+    /// environment `runner` selects.
+    fn read(
+        path: &Path,
+        runner: &RunnerOptions,
+    ) -> crate::Result<Self> {
+        let text = claviron::runner::expand_launch(
+            &std::fs::read_to_string(path)?,
+            runner,
+        )?;
+        let mut options: Self = serde_yaml::from_str::<Launch>(&text)?.into();
         options.config_path = path.to_owned();
         Ok(options)
     }
@@ -166,7 +176,7 @@ impl Options {
             runner: RunnerOptions,
         }
         let args = Args::parse();
-        let mut written = Self::from_file(&args.config_path)?;
+        let mut written = Self::read(&args.config_path, &args.runner)?;
         written.runner = args.runner.over(written.runner);
         written.validate()?;
         Ok(written)
