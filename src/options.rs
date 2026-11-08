@@ -119,11 +119,8 @@ impl Options {
             return Err("broadcasting requires the broadcast feature".into());
         }
         self.configuration.validate_database_features()?;
-        if self.runner.tcp.is_none()
-            && self.runner.uds.is_none()
-            && !self.runner.orbit
-        {
-            return Err("select tcp, uds or orbit ingress".into());
+        if !self.runner.names_a_socket() && !self.runner.orbit {
+            return Err("select orbit or named listeners".into());
         }
         Ok(())
     }

@@ -47,6 +47,9 @@ of builder order. Resolution happens before launch serialization; workers
 inherit the choice. Installed Composer records take precedence over the lockfile
 and root runtime requirements. No HTTP request performs detection.
 TCP/UDS/Orbit are ingress methods, independent of this introduction.
+Named `listeners` use Claviron's common transport configuration and Runnables.
+`defaults.listener` supplies socket defaults and Orbit's execution selection;
+application request and response policy remains at the launch root.
 
 The fluent builder accepts `with_config_path`, `with_fleet_name`, typed
 `with_services::<(ServiceA, ServiceB)>()`, and `with_bootstrap` callbacks.

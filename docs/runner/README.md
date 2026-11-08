@@ -90,7 +90,11 @@ admission and body guards.
 # lumenize.yaml, loaded from the application's working directory
 name: web
 fleet_name: web
-tcp: 127.0.0.1:8200
+listeners:
+  application:
+    transport: tcp
+    listen: 127.0.0.1:8200
+    protocols: [h1, h2]
 orbit: true
 request_mode: application
 php:
@@ -213,10 +217,13 @@ feature. Omission creates no native connections and preserves ordinary PDO
 profiles. Runtime pool options change on process restart.
 
 The optional `cli` Cargo feature exposes `Options::from_args()`: `--config-path`
-(alias `--config`), `--name`, `--fleet-name`, `--tcp`, `--uds`, `--orbit` and
+(alias `--config`), `--name`, `--fleet-name`, `--orbit` and
 `--max-in-flight`.
 CLI flags override or enable entries in the selected file; use a separate
-configuration file to disable an ingress. No listener is enabled implicitly.
+configuration file to disable an ingress. Named sockets and shared
+`defaults.listener` settings are declared in YAML. Orbit uses the same execution
+default; request and response policy remains application-wide. No listener is
+enabled implicitly.
 The instance name and process-family fleet name are independent. Omitted
 `fleet_name` uses the instance name only if it fits the fleet primitive;
 longer names need an explicit fleet name. Workers inherit the selected launch.
@@ -258,7 +265,11 @@ A development launch can select source watching in the same file:
 
 ```yaml
 name: web
-tcp: 127.0.0.1:8200
+listeners:
+  application:
+    transport: tcp
+    listen: 127.0.0.1:8200
+    protocols: [h1, h2]
 watch: true
 watch_paths: [app, routes, application.php]
 ```
@@ -290,7 +301,12 @@ explicitly in that case. No polling fallback is enabled.
 Enable the optional `tls` Cargo feature to serve HTTPS on the TCP listener:
 
 ```yaml
-tcp: 127.0.0.1:8443
+listeners:
+  application:
+    transport: tcp
+    listen: 127.0.0.1:8443
+    protocols: [h1, h2]
+    tls: true
 tls_cert: config/tls/server.pem
 tls_key: config/tls/server.key
 # Optional: require a client certificate signed by this authority (mTLS).
@@ -299,7 +315,7 @@ tls_client_ca: config/tls/edge-ca.pem
 
 With `cli`, the same fields are `--tls-cert`, `--tls-key` and `--tls-client-ca`.
 They override the selected YAML file. Certificate and key must be supplied
-together, and TLS requires `tcp`. Invalid material fails before listeners open.
+together, and TLS requires a named TCP listener with `tls: true`. Invalid material fails before listeners open.
 One certificate serves this application; there is no vhost or SNI certificate
 selection. HTTP/2 and HTTP/1.1 are advertised through ALPN. UDS and Orbit are
 unaffected. Laravel receives the physical HTTPS scheme and TLS connection facts.

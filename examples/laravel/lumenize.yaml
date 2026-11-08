@@ -1,7 +1,11 @@
 # Run from this application's directory. No Edge or Orbit is needed.
 name: laravel-example
 fleet_name: lumenize
-tcp: 127.0.0.1:8000
+listeners:
+  application:
+    transport: tcp
+    listen: 127.0.0.1:8000
+    protocols: [h1, h2]
 orbit: false
 workers: 0
 request_mode: application
