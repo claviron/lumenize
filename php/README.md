@@ -225,7 +225,4 @@ and rejects ordinary script requests. Response headers report the application
 mode, persistent boot ID, request count and process ID. Repeated requests with
 one boot ID and increasing counts verify that the application stays booted.
 
-The Rust `bench` feature supplies `LUMENIZE_BENCH=1` to the application environment
-unless the application explicitly overrides it. The application still owns route
-registration. Native Rust benchmark routes and Laravel controller routes should
-use distinct URLs so an interceptor cannot silently answer the PHP measurement.
+The application owns route registration.

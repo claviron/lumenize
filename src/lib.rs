@@ -36,8 +36,6 @@ mod application;
 pub mod artisan;
 #[cfg(feature = "auth")]
 pub mod auth;
-#[cfg(feature = "bench")]
-pub mod bench;
 #[cfg(feature = "broadcast")]
 pub mod broadcast;
 #[cfg(feature = "cli")]

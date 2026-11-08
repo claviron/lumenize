@@ -82,22 +82,6 @@ handler's response is authoritative, including 404. Request and response guards
 surround both Rust and PHP dispatch. Provider boot contributions are supported.
 No PHP package migration or starter generator is implemented.
 
-## Native HTTP benchmarks
-
-The opt-in `bench` feature forwards to Claviron's benchmark capability and
-installs `claviron::bench::runner::BenchService` using the existing
-host-free `Register`/`Component`/`Routable` contracts after the routing registry
-is declared and before application interception is composed. It owns no listener,
-PHP context, Runnable, lease, configuration source or management loop. The same
-native routes work across TCP, UDS and Orbit, including applications without an
-explicit interceptor. The shared benchmark format is `/_bench/rust` (GET/POST,
-request-declared delay and payload, `x-received`) and `/_bench/stats`
-(process-local activity). Framework-specific benchmark scripts remain
-application-owned; a custom raw service composes the router explicitly.
-All native handlers live in `claviron::bench`, not this crate. `bench::routes`
-and `bench::BenchService` remain compatibility exports. The shared plain,
-JSON and streaming echo workloads are available under `/bench` as well.
-
 ## Downstream repository contract
 
 An application can keep Composer and Cargo in one repository. Its PHP source
@@ -213,10 +197,7 @@ the PHP application does not stop its runner or disconnect its Link lane.
 
 ### Benchmark execution identity
 
-With `bench`, application preparation sets the default `LUMENIZE_BENCH=1` in the
-prepared PHP environment; an explicit value is retained. The opt-in PHP
-`Http\Controllers\BenchController` consumes the existing Octane client's
-request context. It emits that context's boot ID and increasing request count
-and fails when persistent-client context is absent. It owns no native service,
-session or database access. Applications register its actions separately from
-the native Rust benchmark routes.
+The opt-in PHP `Http\Controllers\BenchController` consumes the existing Octane
+client's request context. It emits that context's boot ID and increasing request
+count and fails when persistent-client context is absent. It owns no native
+service, session or database access. Applications register its actions.

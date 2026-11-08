@@ -17,8 +17,8 @@ type Registration = Box<dyn FnOnce(&AppState) -> registry::Result<()> + Send>;
 /// Compose one application from the launch file on Claviron's runner shell: its
 /// sockets, its Orbit lane, its routing, its workers. Claviron owns the PHP
 /// engine, services, signals, draining and finalization.
+#[derive(Default)]
 pub struct Runner {
-    application: String,
     options: Options,
     request_mode: Option<crate::PhpRunner>,
     registrations: Vec<Registration>,
@@ -27,15 +27,9 @@ pub struct Runner {
 }
 
 impl Runner {
-    pub fn new(application: impl Into<String>) -> Self {
-        Self {
-            application: application.into(),
-            options: Options::default(),
-            request_mode: None,
-            registrations: Vec::new(),
-            #[cfg(feature = "axum")]
-            interceptor: None,
-        }
+    /// Create a runner whose application name is supplied by its options.
+    pub fn new() -> Self {
+        Self::default()
     }
 
     pub fn with_options(
@@ -122,12 +116,8 @@ impl Runner {
         }
         self.options.runner.icon.get_or_insert_with(|| "laravel".into());
         self.options.validate()?;
-        let name = self
-            .options
-            .runner
-            .name
-            .clone()
-            .unwrap_or_else(|| self.application.clone());
+        let name =
+            self.options.runner.name.clone().ok_or("name is required")?;
         // The application restarts inside its process; with workers each has
         // its own, and the master that watches has none.
         #[cfg(feature = "watch")]
@@ -141,9 +131,9 @@ impl Runner {
         let system_log = self.options.system_log()?;
         let config_path = self.options.config_path.clone();
         let launch = Launch::from(self.options);
-        let application = self.application;
-        let definition_name = application.clone();
-        let owner_name = application.clone();
+        let definition_name = name.clone();
+        let owner_name = name.clone();
+        let application = name.clone();
         // Bounded by the lane's own capacity unless the launch says otherwise:
         // work beyond it waits in the lane, where the edge sees it.
         Composition::new(launch, name, PHP_RUNTIME, move |state, launch| {
@@ -178,8 +168,6 @@ impl Runner {
             claviron_php::register(state)
         })
         .configure(move |state, _| {
-            #[cfg(feature = "bench")]
-            claviron::bench::runner::BenchService::register(state)?;
             for register in registrations {
                 register(state)?;
             }

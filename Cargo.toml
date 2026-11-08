@@ -22,7 +22,6 @@ runner = ["claviron-broadcast?/runner", "claviron/runner", "claviron/runner-sock
 # Artisan command entry; also enables Options::from_args when runner is selected.
 cli = ["dep:clap", "claviron/runner-cli", "tokio/macros", "tokio/rt-multi-thread", "tokio/signal"]
 axum = ["claviron/axum"]
-bench = ["runner", "axum", "claviron/bench"]
 tls = ["claviron/tls"]
 files = ["runner", "axum", "claviron/files"]
 watch = ["runner", "claviron/runner-watch"]

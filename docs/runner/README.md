@@ -18,7 +18,6 @@ Alpha APIs and configuration may change without backward compatibility guarantee
 | --- | --- |
 | `runner` | Opt-in single-application composition; no default features |
 | `axum` | `register_router` and the shared Axum re-export |
-| `bench` | Opt-in native HTTP baselines through the existing Routable registry |
 | `cli` | Independent Artisan entry; with `runner`, parse launch options |
 | `tls` | HTTPS and optional mTLS on the TCP listener |
 | `files` | Explicit static mounts; selects the Axum adapter |
@@ -63,7 +62,7 @@ fn configure(state: &AppState) -> registry::Result<()> {
 
 #[tokio::main]
 async fn main() -> lumenize::Result<()> {
-    Runner::new("web")
+    Runner::new()
         .with_options(Options::from_file("lumenize.yaml")?)
         .with_bootstrap(configure)
         .run()
@@ -103,8 +102,8 @@ logging:
 ```
 
 `php.application` declares its persistent PHP script, environment, pool and
-execution policy, without repeating the application name. `Runner::new("web")`
-already supplies that name, so `name` above is optional. `php.engine`,
+execution policy, without repeating the application name. `name` is required;
+`--name` overrides it. `php.engine`,
 `php.lifecycle` and optional `php.sapi` use the existing embed schema. A single
 persistent application does not also create a script pool unless requested.
 Paths in the file are
@@ -121,7 +120,7 @@ No request inspects Composer or changes execution mode.
 
 `request_mode: application` or `request_mode: script` in YAML overrides
 detection. Code can override YAML with
-`Runner::new("web").with_request_mode(lumenize::PhpRunner::Script)`;
+`Runner::new().with_request_mode(lumenize::PhpRunner::Script)`;
 this choice survives a later `with_options` or `with_config_path` call.
 
 Application mode uses the persistent receive/respond adapter. An explicit
@@ -184,26 +183,6 @@ cache:
 
 Omitting `cache` (or using `cache: {}`) declares no stores. Cache and other launch
 policy changes require a process restart.
-
-## Native HTTP benchmarks
-
-Enable `bench` in the application's Cargo features to register
-Claviron's shared `bench::runner::BenchService` automatically. This library
-forwards `claviron/bench` and selects the existing runner adapter; it has no
-copy of the native handlers. It contributes `/_bench/rust` (GET/POST)
-and `/_bench/stats` (GET) ahead of PHP on TCP, UDS and Orbit ingress. No separate
-listener or benchmark configuration is created. Application interceptors still
-own their declared paths. Without `bench`, this provider and its handlers are
-not compiled. A custom raw Tower service can explicitly compose `bench::routes()`.
-
-The Rust response is JSON with `from: rust`. Optional `min`/`max` query values
-declare delay in milliseconds; omission means no wait. `payload` declares the
-message length, capped at one MiB. POST consumes the request body and reports
-its size in `x-received`. Stats report process-local `in_flight`, `total` and
-`sessions`, not fleet totals. Payload bodies are retained once per requested
-size; keep sizes fixed when comparing memory between load-test rounds.
-The same router supplies `/bench/plain`, `/bench/json` and streaming
-POST `/bench/echo`. `lumenize::bench` retains its compatibility exports.
 
 ## Native database pools
 
@@ -408,7 +387,7 @@ broadcasting:
   client_events: true
 ```
 
-The application name comes from `Runner::new(...)`. The wire `id` defaults to
+The application name comes from the launch file's `name`. The wire `id` defaults to
 that name and can be set explicitly for external Pusher REST clients.
 The secret must be present in the Rust process environment before bootstrap;
 under systemd, supply it with `EnvironmentFile`.
