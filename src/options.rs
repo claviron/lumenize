@@ -119,7 +119,7 @@ impl Options {
             return Err("broadcasting requires the broadcast feature".into());
         }
         self.configuration.validate_database_features()?;
-        if !self.runner.names_a_socket() && !self.runner.orbit {
+        if !self.runner.names_a_socket() && !self.runner.link_enabled() {
             return Err("select orbit or named listeners".into());
         }
         Ok(())

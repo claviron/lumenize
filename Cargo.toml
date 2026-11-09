@@ -80,7 +80,7 @@ repository = "https://github.com/claviron/lumenize.git"
 claviron = { version = "0.2.0-alpha.26", path = "../../claviron", default-features = false }
 claviron-broadcast = { version = "0.2.0-alpha.26", path = "../../backends/broadcast" }
 claviron-php = { version = "0.2.0-alpha.26", path = "../../embed/php" }
-lumenize = { path = ".", version = "0.2.0-alpha.25", default-features = false }
+lumenize = { path = ".", version = "0.2.0-alpha.26", default-features = false }
 arc-swap = "1.9"
 async-trait = "0.1"
 clap = { version = "4", features = ["derive"] }

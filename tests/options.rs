@@ -40,12 +40,21 @@ fn octane_detection_and_explicit_modes_select_execution() {
 #[test]
 fn a_flat_file_divides_and_a_typo_is_refused() {
     let read: Options = serde_yaml::from_str::<Launch>(
-        "orbit: true\nfleet_name: example\nphp: {application: {script_path: application.php}}\ncache: {}\nconfig_parser: {max_depth: 8}\nmax_in_flight: 128\n",
+        "orbit: {link: {max_in_flight: 128}}\nfleet_name: example\nphp: {application: {script_path: application.php}}\ncache: {}\nconfig_parser: {max_depth: 8}\n",
     )
     .unwrap()
     .into();
-    assert!(read.runner.orbit);
-    assert_eq!(read.runner.max_in_flight, Some(128));
+    assert!(read.runner.link_enabled());
+    assert_eq!(
+        read.runner
+            .orbit_config()
+            .unwrap()
+            .unwrap()
+            .link
+            .unwrap()
+            .max_in_flight,
+        Some(128)
+    );
     assert_eq!(read.runner.fleet_name.as_deref(), Some("example"));
     assert_eq!(read.configuration.config_parser.max_depth, 8);
     let cache: claviron::cache::CacheConfig =
@@ -62,7 +71,7 @@ fn a_flat_file_divides_and_a_typo_is_refused() {
 #[test]
 fn a_launch_survives_the_envelope() {
     let mut sent: Launch = serde_yaml::from_str(
-        "orbit: true\nfleet_name: example\nworkers: 2\nrequest_mode: application\nrequests:\n  queue_timeout: 60s\nconfig_path: deployment.yaml\nphp: {application: {script_path: application.php}}\nlogging: {path: logs/system.log}\nbroadcasting: {key: '${APP_KEY}', secret: '${APP_SECRET}'}\n",
+        "orbit: {link: {}}\nfleet_name: example\nworkers: 2\nrequest_mode: application\nrequests:\n  queue_timeout: 60s\nconfig_path: deployment.yaml\nphp: {application: {script_path: application.php}}\nlogging: {path: logs/system.log}\nbroadcasting: {key: '${APP_KEY}', secret: '${APP_SECRET}'}\n",
     )
     .unwrap();
     let prepared = sent.prepare("example-app".into()).unwrap();
@@ -108,7 +117,7 @@ fn logging_rejects_misspelled_sections_and_non_mappings() {
 #[test]
 fn database_launch_survives_workers_without_resolving_environment() {
     let mut launch: Launch = serde_yaml::from_str(
-        "orbit: true\nfleet_name: example\nworkers: 2\ndatabase:\n  postgres:\n    example:\n      url: '${DATABASE_URL}'\n      pool: {pool_size: 2, idle_size: 0, acquire_timeout: 1s, idle_timeout: 1s, max_lifetime: 1s}\n",
+        "orbit: {link: {}}\nfleet_name: example\nworkers: 2\ndatabase:\n  postgres:\n    example:\n      url: '${DATABASE_URL}'\n      pool: {pool_size: 2, idle_size: 0, acquire_timeout: 1s, idle_timeout: 1s, max_lifetime: 1s}\n",
     )
     .unwrap();
     let sent = launch.prepare("example-app".into()).unwrap();

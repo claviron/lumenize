@@ -6,7 +6,6 @@ listeners:
     transport: tcp
     listen: 127.0.0.1:8000
     protocols: [h1, h2]
-orbit: false
 workers: 0
 request_mode: application
 try_files: true

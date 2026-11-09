@@ -95,7 +95,8 @@ listeners:
     transport: tcp
     listen: 127.0.0.1:8200
     protocols: [h1, h2]
-orbit: true
+orbit:
+  link: {}
 request_mode: application
 php:
   application:
