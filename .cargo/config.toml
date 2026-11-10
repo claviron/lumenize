@@ -7,11 +7,14 @@
 # Inbox entries are fixed size like every other ring here. 8 KiB is the header
 # ceiling every HTTP server already imposes (nginx large_client_header_buffers
 # is 8k), so a request whose headers do not fit was never going to be served:
-# the edge answers 431 and nothing reaches this ring. 256 entries per node lane
-# 32 entries per node lane is the queue depth a target may hold before a
-# writer is refused with 503 — shallow on purpose, because depth is what the
-# caller chooses a target by and a long queue makes that reading stale.
-ORBIT_LINK_INBOX_CAPACITY = { value = "128", force = true }
+# the edge answers 431 and nothing reaches this ring.
+#
+# These are ceilings: the application declares its fleet's shape in its launch
+# (`orbit.link.geometry`) and every caller adopts it; without a declaration the
+# ceilings are the shape. The inbox must exceed both the receiver bound
+# (`max_in_flight`) and the lane capacity, because it also carries control
+# frames, and a sender's inbox takes the replies to all its open exchanges.
+ORBIT_LINK_INBOX_CAPACITY = { value = "1024", force = true }
 ORBIT_LINK_INBOX_PAYLOAD_CAPACITY = { value = "17408", force = true }
 
 # The body stream is its own table, not orbit-stream's default (kind 246):
@@ -28,9 +31,9 @@ ORBIT_LINK_INBOX_PAYLOAD_CAPACITY = { value = "17408", force = true }
 #
 # Lane capacity is concurrent exchanges a node may *originate*: a slot comes
 # from the creator's lane, and the edge creates. Application workers open the
-# other side and consume none of their own. 128 is what a Unix socket profile
-# gives itself as max_live, and it is the same question on both transports.
-ORBIT_LINK_LANE_CAPACITY = { value = "128", force = true }
+# other side and consume none of their own. A ceiling below the inbox
+# ceiling, so the undeclared shape stays valid.
+ORBIT_LINK_LANE_CAPACITY = { value = "512", force = true }
 ORBIT_LINK_BUFFER_BYTES = { value = "65536", force = true }
 
 # Each application meets its callers in a fleet of its own, named after it:
@@ -44,7 +47,7 @@ ORBIT_LINK_BUFFER_BYTES = { value = "65536", force = true }
 # an application of eight workers is sixteen, which 32 covers; a lane nobody
 # claims costs address space only.
 #
-# Read at build time by both binaries. Change it here and in the other
-# project, or neither: Orbit refuses at open a segment of another shape.
+# Read at build time. A caller adopts the shape an application declared, so
+# the two binaries need not match; each only bounds what it accepts.
 ORBIT_LINK_FLEET_CAPACITY = { value = "32", force = true }
 
