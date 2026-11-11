@@ -172,7 +172,7 @@ fn only_persistent_php_supplies_link_execution_capacity() {
     };
     let options = read(raw);
     options.validate().unwrap();
-    assert_eq!(options.linked_instances().unwrap(), Some(8));
+    assert_eq!(options.link_instances().unwrap(), Some(8));
 
     for (candidate, diagnostic) in [
         (
@@ -191,5 +191,5 @@ fn only_persistent_php_supplies_link_execution_capacity() {
         "request_mode: script\norbit: {link: {max_in_flight: 8, max_queued: 64}}",
     );
     script.validate().unwrap();
-    assert_eq!(script.linked_instances().unwrap(), None);
+    assert_eq!(script.link_instances().unwrap(), None);
 }

@@ -128,7 +128,7 @@ impl Runner {
             );
         }
         let system_log = self.options.system_log()?;
-        let link_capacity = self.options.linked_instances()?;
+        let link_capacity = self.options.link_instances()?;
         let config_path = self.options.config_path.clone();
         let launch = Launch::from(self.options);
         let definition_name = name.clone();

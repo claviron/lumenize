@@ -101,13 +101,13 @@ impl Options {
         Ok(options)
     }
 
-    pub(crate) fn linked_instances(&self) -> crate::Result<Option<usize>> {
+    pub(crate) fn link_instances(&self) -> crate::Result<Option<usize>> {
         if self.configuration.request_mode
             != Some(crate::PhpRunner::Application)
         {
             return Ok(None);
         }
-        Ok(claviron_php::embed::linked_application_instances(
+        Ok(claviron_php::embed::link_application_instances(
             &self.configuration.php,
             self.runner.orbit.as_ref(),
         )
@@ -115,7 +115,7 @@ impl Options {
     }
 
     pub fn validate(&self) -> crate::Result<()> {
-        self.linked_instances()?;
+        self.link_instances()?;
         self.runner.validate()?;
         if self.config_path.as_os_str().is_empty() {
             return Err("config_path must name a file".into());
@@ -355,7 +355,7 @@ impl Configuration {
         let yaml = serde_yaml::to_string(&php)
             .map_err(|error| registry::Error::msg(error.to_string()))?;
         let register_application = if linked {
-            claviron_php::embed::register_linked_application_from_yaml
+            claviron_php::embed::register_link_application_from_yaml
         } else {
             claviron_php::embed::register_application_from_yaml
         };
