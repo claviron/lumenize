@@ -1,6 +1,5 @@
 use std::sync::Arc;
 
-use claviron::orbit::link::application::LINK_INBOX_CAPACITY;
 use claviron::runner::{Composition, Owner};
 use claviron::runtime::{AppState, Register, registry};
 
@@ -129,13 +128,12 @@ impl Runner {
             );
         }
         let system_log = self.options.system_log()?;
+        let link_capacity = self.options.linked_instances()?;
         let config_path = self.options.config_path.clone();
         let launch = Launch::from(self.options);
         let definition_name = name.clone();
         let owner_name = name.clone();
         let application = name.clone();
-        // Bounded by the lane's own capacity unless the launch says otherwise:
-        // work beyond it waits in the lane, where the edge sees it.
         Composition::new(launch, name, PHP_RUNTIME, move |state, launch| {
             let php = PhpService::new();
             let script =
@@ -167,7 +165,9 @@ impl Runner {
             let owner = claviron_broadcast::runner::in_front(state, owner)?;
             Ok(owner)
         })
-        .default_in_flight(Some(LINK_INBOX_CAPACITY))
+        .default_in_flight(
+            link_capacity.map(|limit| (limit, "php.application.instances")),
+        )
         .config_path(&config_path)
         .system_log(system_log)
         .definitions(move |state, launch| {
@@ -176,6 +176,7 @@ impl Runner {
                 &definition_name,
                 launch.runner.frameworks.clone().unwrap_or_default(),
                 launch.runner.icon.clone(),
+                launch.runner.link_enabled(),
             )?;
             claviron_php::register(state)
         })

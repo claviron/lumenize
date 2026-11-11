@@ -101,7 +101,21 @@ impl Options {
         Ok(options)
     }
 
+    pub(crate) fn linked_instances(&self) -> crate::Result<Option<usize>> {
+        if self.configuration.request_mode
+            != Some(crate::PhpRunner::Application)
+        {
+            return Ok(None);
+        }
+        Ok(claviron_php::embed::linked_application_instances(
+            &self.configuration.php,
+            self.runner.orbit.as_ref(),
+        )
+        .map_err(|error| error.into_std())?)
+    }
+
     pub fn validate(&self) -> crate::Result<()> {
+        self.linked_instances()?;
         self.runner.validate()?;
         if self.config_path.as_os_str().is_empty() {
             return Err("config_path must name a file".into());
@@ -314,6 +328,7 @@ impl Configuration {
         application: &str,
         frameworks: Vec<String>,
         icon: Option<String>,
+        linked: bool,
     ) -> claviron::runtime::registry::Result<()> {
         use claviron::runtime::registry;
         self.validate_database_features()
@@ -339,6 +354,11 @@ impl Configuration {
         }
         let yaml = serde_yaml::to_string(&php)
             .map_err(|error| registry::Error::msg(error.to_string()))?;
+        let register_application = if linked {
+            claviron_php::embed::register_linked_application_from_yaml
+        } else {
+            claviron_php::embed::register_application_from_yaml
+        };
         let description = claviron::app::ApplicationDescription {
             frameworks,
             icon,
@@ -347,12 +367,7 @@ impl Configuration {
         };
         match mode {
             crate::PhpRunner::Application => {
-                claviron_php::embed::register_application_from_yaml(
-                    state,
-                    application,
-                    &yaml,
-                    description,
-                )?
+                register_application(state, application, &yaml, description)?
             }
             crate::PhpRunner::Script => {
                 claviron_php::embed::register_script_from_yaml(

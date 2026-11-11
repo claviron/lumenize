@@ -163,3 +163,33 @@ fn database_requires_a_mapping_and_selected_backends() {
         assert_eq!(configuration.validate_database_features().is_ok(), enabled);
     }
 }
+
+#[test]
+fn only_persistent_php_supplies_link_execution_capacity() {
+    let raw = "request_mode: application\norbit: {link: {max_queued: 64}}\nphp: {application: {instances: 8}}";
+    let read = |yaml: &str| -> Options {
+        serde_yaml::from_str::<Launch>(yaml).unwrap().into()
+    };
+    let options = read(raw);
+    options.validate().unwrap();
+    assert_eq!(options.linked_instances().unwrap(), Some(8));
+
+    for (candidate, diagnostic) in [
+        (
+            raw.replace("max_queued: 64", "max_in_flight: 8, max_queued: 64"),
+            "php.application.instances",
+        ),
+        (
+            raw.replace("instances: 8", "instances: 8, max_queued: 0"),
+            "use orbit.link.max_queued",
+        ),
+    ] {
+        let error = read(&candidate).validate().unwrap_err();
+        assert!(error.to_string().contains(diagnostic));
+    }
+    let script = read(
+        "request_mode: script\norbit: {link: {max_in_flight: 8, max_queued: 64}}",
+    );
+    script.validate().unwrap();
+    assert_eq!(script.linked_instances().unwrap(), None);
+}

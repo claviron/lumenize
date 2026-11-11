@@ -123,3 +123,8 @@ package selects only `cli` and does not own the reusable Runner API.
 
 MIT. This independent project is not affiliated with or endorsed by Laravel
 or its official components.
+
+In PHP application mode, a Link receiver runs as many exchanges as
+`php.application.instances`. Declare its waiting capacity with
+`orbit.link.max_queued` (zero disables waiting). For socket-only applications,
+`php.application.max_queued` configures the engine's queue.
