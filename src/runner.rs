@@ -144,12 +144,24 @@ impl Runner {
                 } else {
                     None
                 };
+            let execution = if script.is_some() {
+                state
+                    .registry_ref()
+                    .resolve::<claviron_php::embed::PhpScriptService>()
+                    .map_or(claviron::ExecutorSpec::Inherit, |service| {
+                        service.execution()
+                    })
+            } else {
+                claviron::ExecutorSpec::Dedicated(
+                    claviron::ExecutorKind::CurrentThread,
+                )
+            };
             state.registry_ref().register(Arc::new(PhpOwner::new(
                 owner_name,
                 php.clone(),
                 script,
             )))?;
-            let owner = Owner::new(php);
+            let owner = Owner::new(execution, php);
             // A Pusher client's channels stand in front of the application.
             #[cfg(feature = "broadcast")]
             let owner = claviron_broadcast::runner::in_front(state, owner)?;
