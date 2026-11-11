@@ -77,9 +77,9 @@ repository = "https://github.com/claviron/lumenize.git"
 
 [workspace.dependencies]
 # Public Claviron facade only; framework adapters never become core dependencies.
-claviron = { version = "0.2.0-alpha.26", path = "../../claviron", default-features = false }
-claviron-broadcast = { version = "0.2.0-alpha.26", path = "../../backends/broadcast" }
-claviron-php = { version = "0.2.0-alpha.26", path = "../../embed/php" }
+claviron = { version = "0.2.0-alpha.26", default-features = false }
+claviron-broadcast = { version = "0.2.0-alpha.26" }
+claviron-php = { version = "0.2.0-alpha.26" }
 lumenize = { path = ".", version = "0.2.0-alpha.26", default-features = false }
 arc-swap = "1.9"
 async-trait = "0.1"
