@@ -1,7 +1,7 @@
 //! One launch file: the common runner options and the hosted PHP application.
 use std::path::{Path, PathBuf};
 
-use claviron::runner::RunnerOptions;
+use claviron_runner::RunnerOptions;
 use serde::{Deserialize, Serialize};
 
 /// Deployment options. All runtime sections come from `config_path`, not a
@@ -58,7 +58,7 @@ fn default_config_max_depth() -> usize {
     64
 }
 
-pub(crate) type Launch = claviron::runner::launch::Launch<Configuration>;
+pub(crate) type Launch = claviron_runner::launch::Launch<Configuration>;
 
 impl From<Launch> for Options {
     fn from(launch: Launch) -> Self {
@@ -92,7 +92,7 @@ impl Options {
         path: &Path,
         runner: &RunnerOptions,
     ) -> crate::Result<Self> {
-        let text = claviron::runner::expand_launch(
+        let text = claviron_runner::expand_launch(
             &std::fs::read_to_string(path)?,
             runner,
         )?;
@@ -173,7 +173,7 @@ impl Options {
     pub fn from_args() -> crate::Result<Self> {
         use clap::Parser;
         // Re-exec workers receive the launch and do not reopen a default file.
-        if let Some(launch) = claviron::runner::worker_launch()? {
+        if let Some(launch) = claviron_runner::worker_launch()? {
             return Ok(Launch::into(launch));
         }
         #[derive(Parser)]

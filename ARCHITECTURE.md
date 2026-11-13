@@ -127,7 +127,7 @@ permission to kill foreign blocking work. PHP INI selection remains process-owne
 
 Build/install it with `cargo install --path cli --features cli --bin lumenize`,
 or install `lumenize-cli` with its default `cli` feature. The root library
-has no binary. Claviron's weak `runner-cli` forwarding adds shared argument
+has no binary. The weak forwarding to `claviron-runner/cli` adds shared argument
 parsing only when the serving runner is separately selected.
 The first standalone entry does not load runtime YAML, bind native DB/cache
 services or attach to Orbit. Laravel can use its ordinary PHP/PDO drivers;

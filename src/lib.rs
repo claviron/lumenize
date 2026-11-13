@@ -12,9 +12,9 @@ pub use claviron::axum;
 #[cfg(all(feature = "runner", feature = "axum"))]
 pub use claviron::pipeline::routing::{Routable, register_routable};
 #[cfg(all(feature = "runner", feature = "axum"))]
-pub use claviron::runner::register_router;
+pub use claviron_runner::register_router;
 #[cfg(feature = "runner")]
-pub use claviron::runner::{
+pub use claviron_runner::{
     AppRequest, AppResponse, Owner, register_router_with,
 };
 #[cfg(feature = "runner")]

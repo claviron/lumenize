@@ -12,7 +12,7 @@ that composition in the future.
 
 ## Boundaries
 
-- Consume the runner shell through the public `claviron::runner` facade.
+- Consume the runner shell through the public `claviron-runner` crate.
   Claviron supplies lifecycle and the PHP engine; the root `lumenize` library
   supplies Laravel integration. Neither runner nor facade selects an edge implicitly.
 - Compose the existing PHP runner and embedded PHP extension mechanisms;

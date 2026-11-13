@@ -1,6 +1,6 @@
 use std::sync::Arc;
 
-use claviron::runner::{Composition, Owner};
+use claviron_runner::{Composition, Owner};
 use claviron::runtime::{AppState, Register, registry};
 
 use crate::Options;
@@ -95,7 +95,7 @@ impl Runner {
         F: FnOnce(AppState) -> claviron::axum::Router + Send + 'static,
     {
         self.interceptor = Some(Box::new(move |state| {
-            claviron::runner::register_router(state, router)
+            claviron_runner::register_router(state, router)
         }));
         self
     }

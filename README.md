@@ -42,9 +42,8 @@ Claviron boot, Edge hosts, configuration, providers and process lifecycle.
 | [`lumenize-cli`](cli/README.md) | Thin `lumenize` Artisan console binary; no HTTP Runner dependency |
 | [`claviron/laravel`](php/README.md) (Composer) | Laravel drivers, Octane receive/respond adapter, providers, queue and event integration |
 
-The Rust packages share one alpha release version and are published separately
-to crates.io: Claviron first, then `lumenize`, then `lumenize-cli`. Alpha APIs
-and configuration may change without backward compatibility guarantees.
+The Rust packages share one release version. Install `lumenize-cli` for the
+Artisan executable or add `lumenize` to your own Rust host.
 
 ## PHP integration
 
