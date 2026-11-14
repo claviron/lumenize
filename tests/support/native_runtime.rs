@@ -79,6 +79,7 @@ pub async fn run_fixture(
         application: None,
         server_run_mode: RunMode::Standalone,
         server_worker_count: 1,
+        server_pid: std::process::id(),
         server_hostname: "app.test".to_owned(),
         server_software: "claviron-test".to_owned(),
     });
