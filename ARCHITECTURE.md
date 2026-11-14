@@ -196,7 +196,8 @@ claviron_laravel_broadcast($key, $channels, $event, $jsonData, $socketId);
 
 Rust's `broadcast` module owns the extension, registration, native handler and
 publication context. `broadcast::LaravelBroadcastProvider` implements
-`Register<AppState>` and installs `broadcast::BroadcastExtension` on serving
+`Register<AppState>`: it registers `BroadcastService` in every role unless the
+host already has, and installs `broadcast::BroadcastExtension` on serving
 processes without a fixed application name. The crate root declares modules
 without generic extension or registration aliases. This extension is named
 `claviron-laravel-broadcast` and registers only `claviron_laravel_broadcast`.

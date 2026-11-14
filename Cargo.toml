@@ -63,6 +63,10 @@ tempfile.workspace = true
 name = "native_registration"
 required-features = ["broadcast"]
 
+[[test]]
+name = "broadcast_provider"
+required-features = ["broadcast"]
+
 [workspace]
 resolver = "3"
 members = ["cli", "examples/laravel"]

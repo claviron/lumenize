@@ -85,7 +85,8 @@ use lumenize::broadcast::LaravelBroadcastProvider;
 use lumenize::congif::LaravelConfigProvider;
 
 // Requires lumenize's `auth` and `broadcast` features. The host has already
-// declared its PHP engine/INI, broadcast service and event transport.
+// declared its PHP engine/INI and event transport. The broadcast provider
+// registers the broadcast service from `broadcast.yaml` unless the host has.
 fn register_laravel(state: &AppState) -> registry::Result<()> {
     LaravelConfigProvider::register(state)?;
     LaravelBroadcastProvider::register(state)?;
