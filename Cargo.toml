@@ -1,6 +1,6 @@
 [package]
 name = "lumenize"
-version.workspace = true
+version = "0.2.3"
 publish.workspace = true
 edition.workspace = true
 license.workspace = true
@@ -37,7 +37,7 @@ legacy-linux = ["claviron/legacy-linux"]
 [dependencies]
 # The base integration does not select Runner, Edge or Supervisor.
 claviron = { workspace = true, features = ["runtime"] }
-claviron-runner = { version = "0.2.1", default-features = false, features = ["socket", "orbit", "supervisor"], optional = true }
+claviron-runner = { version = "0.2.2", default-features = false, features = ["socket", "orbit", "supervisor"], optional = true }
 claviron-broadcast = { workspace = true, optional = true }
 claviron-php = { workspace = true, features = ["embed"] }
 arc-swap = { workspace = true, optional = true }
@@ -73,7 +73,6 @@ members = ["cli", "examples/laravel"]
 default-members = ["."]
 
 [workspace.package]
-version = "0.2.3"
 publish = true
 edition = "2024"
 license = "MIT"
@@ -82,9 +81,9 @@ repository = "https://github.com/claviron/lumenize.git"
 
 [workspace.dependencies]
 # Public Claviron facade only; framework adapters never become core dependencies.
-claviron = { version = "0.2.1", default-features = false }
+claviron = { version = "0.2.7", default-features = false }
 claviron-broadcast = { version = "0.2.2" }
-claviron-php = { version = "0.2.1" }
+claviron-php = { version = "0.2.4" }
 lumenize = { path = ".", version = "0.2.3", default-features = false }
 arc-swap = "1.9"
 async-trait = "0.1"
