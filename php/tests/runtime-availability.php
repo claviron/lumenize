@@ -15,6 +15,7 @@ $app = new \Illuminate\Foundation\Application(sys_get_temp_dir());
 $app->instance('config', new \Illuminate\Config\Repository([
     'cache' => ['default' => 'claviron', 'stores' => [
         'claviron' => ['driver' => 'claviron', 'fallback' => 'array'],
+        'unnamed' => ['driver' => 'claviron', 'runtime_store' => '', 'fallback' => 'array'],
         'array' => ['driver' => 'array'],
     ]],
     'database' => ['connections' => [
@@ -32,6 +33,11 @@ $database = new \Illuminate\Database\DatabaseManager($app, $factory);
 if (! $cache->store()->getStore() instanceof \Illuminate\Cache\ArrayStore) {
     throw new LogicException('Detached engine ignored the declared cache fallback');
 }
+// A runtime_store that names nothing is refused before any fallback is chosen.
+try {
+    $cache->store('unnamed');
+    throw new LogicException('An empty runtime_store fell back');
+} catch (InvalidArgumentException) {}
 foreach (['pgsql' => \Illuminate\Database\PostgresConnection::class, 'mysql' => \Illuminate\Database\MySqlConnection::class] as $driver => $class) {
     // Resolving a plain Laravel connection keeps PDO lazy; no connection is opened.
     if ($database->connection($driver)::class !== $class) {

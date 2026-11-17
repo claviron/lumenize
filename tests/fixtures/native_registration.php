@@ -23,5 +23,5 @@ try {
 if (!claviron_runtime_available()) {
     throw new RuntimeException('PHP did not recover from the host exception');
 }
-header('X-Registration-Test: ok');
+header('X-Fixture: ok');
 echo 'ok';

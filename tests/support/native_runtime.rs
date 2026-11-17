@@ -7,7 +7,6 @@ use std::sync::Arc;
 
 use claviron::runtime::registry::Runnable;
 use claviron::runtime::{AppState, RunContext, RunMode};
-use claviron_php::embed::extension::{PhpEmbedExtension, register_extension};
 use claviron_php::embed::{
     PhpEmbedRuntime, PhpEmbedStateExt, PhpSapiRequest, PhpScriptService,
     RequestPool,
@@ -17,10 +16,21 @@ use http::Request;
 use http_body_util::BodyExt;
 use tokio_util::sync::CancellationToken;
 
+/// A path as a single-quoted PHP string literal.
+pub fn php_string(path: &Path) -> String {
+    let path = path.to_str().unwrap();
+    format!("'{}'", path.replace('\\', "\\\\").replace('\'', "\\'"))
+}
+
 /// One runtime per integration-test process, with no listener or fleet boot.
+///
+/// `prepare` registers what the fixture needs, such as an extension or a
+/// cache, before PHP boots. The fixture runs from its own directory, so it
+/// can reach this package's files, and answers with `X-Fixture: ok` and the
+/// body `ok`.
 pub async fn run_fixture(
     fixture: &Path,
-    extension: Option<Arc<dyn PhpEmbedExtension>>,
+    prepare: impl AsyncFnOnce(&AppState),
 ) {
     let root = tempfile::tempdir().unwrap();
     let ini = root.path().join("php.ini");
@@ -30,11 +40,13 @@ pub async fn run_fixture(
     )
     .unwrap();
     let script = root.path().join("index.php");
-    std::fs::copy(fixture, &script).unwrap();
+    std::fs::write(
+        &script,
+        format!("<?php require {};\n", php_string(fixture)),
+    )
+    .unwrap();
     let state = AppState::standalone("php-extension-test", root.path());
-    if let Some(extension) = extension {
-        register_extension(&state, extension).unwrap();
-    }
+    prepare(&state).await;
     PhpEmbedRuntime::builder()
         .request_pool(RequestPool::fixed(2))
         .cache_invalidation(false)
@@ -112,7 +124,7 @@ pub async fn run_fixture(
             "{}",
             String::from_utf8_lossy(&body)
         );
-        assert_eq!(parts.headers["x-registration-test"], "ok");
+        assert_eq!(parts.headers["x-fixture"], "ok");
         assert_eq!(body.as_ref(), b"ok");
     }
     cancellation.cancel();

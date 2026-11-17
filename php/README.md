@@ -156,6 +156,103 @@ Events shared with Rust, JavaScript, or Python use a stable topic and the
 make that serialization a cross-language contract. Incoming delivery never
 publishes the same event back to the bus.
 
+## Cache
+
+The `claviron` cache driver stores values in a cache store the host declares
+in its runtime cache configuration (`cache.yaml`). Each Laravel store chooses
+its runtime store with `runtime_store`:
+
+```php
+// config/cache.php
+'default' => env('CACHE_STORE', 'shared'),
+
+'stores' => [
+    'shared' => [
+        'driver' => 'claviron',
+        'runtime_store' => 'fleet',
+    ],
+    'remote' => [
+        'driver' => 'claviron',
+        'runtime_store' => 'redis',
+    ],
+    'runtime_default' => [
+        'driver' => 'claviron',
+    ],
+],
+```
+
+- `Cache::store('remote')` uses the runtime store named `redis`, whatever the
+  runtime's default store is. The Laravel store's name is yours and selects
+  nothing by itself, and a runtime store's name implies no backend: its
+  driver in `cache.yaml` does. Orbit, Redis, memory and file stores are all
+  selected the same way.
+- Leaving `runtime_store` out, or setting it to `null`, selects the runtime's
+  default store. It is never guessed from the Laravel store's name or from
+  an environment variable.
+- A name the runtime does not have throws `Claviron\Runtime\CacheException`
+  when the store is first resolved. An empty string or a value that is not a
+  string throws `InvalidArgumentException`. Neither falls back to the default
+  store.
+- `fallback` names another Laravel store to use only where PHP runs without
+  the runtime, such as a plain Artisan or test process. It never replaces a
+  runtime store that is missing.
+
+Values keep their PHP types: scalars and arrays are stored natively, so other
+runtime readers can use them, and objects are serialized. Expiry follows
+Laravel: a zero or negative lifetime forgets the key, and no lifetime keeps it
+until it is removed. `flush()` clears the whole runtime store, including keys
+under another prefix, so give each application its own runtime store.
+
+`increment()`, `decrement()` and `lock()` do not use the runtime store. They
+use the host's fleet counters and locks, keyed with the Laravel store's
+prefix, whichever runtime store `runtime_store` selects. They do not follow a
+Redis runtime store into Redis, `get()` does not see a counter, and `flush()`
+does not reset counters or locks.
+
+### Tags
+
+`Cache::store($name)->supportsTags()` is true when the selected runtime store
+supports tags, including when `runtime_store` is omitted and the runtime's
+default store is used. Today that is an Orbit store without an `l2` backing
+store. On any other store, `tags()` throws Laravel's usual
+`BadMethodCallException`, and untagged reads and writes keep working.
+
+```php
+Cache::tags(['people', 'artists'])->put('John', $john, 600);
+Cache::tags(['people', 'authors'])->put('Anne', $anne, 600);
+
+Cache::tags(['people', 'artists'])->get('John');
+
+// Removes John and Anne: both lists contain `people`.
+Cache::tags(['people'])->flush();
+```
+
+As in Laravel, a tagged item is read through the same ordered list of tags it
+was stored with, a flush removes what was stored under any list containing a
+flushed tag, and untagged keys are separate from tagged ones. A flush is one
+invalidation in the runtime store, seen by every worker; it walks no keys and
+stores no tag identifiers in the cache. A flushed tag takes new writes
+immediately.
+
+Where it differs from Laravel's built-in stores:
+
+- Tag names must be strings and valid UTF-8, and a list must name at least
+  one tag. Otherwise `tags()` throws `TypeError`, `ValueError` or
+  `InvalidArgumentException`.
+- Tags are scoped by the Laravel store's `prefix`, as keys are. Two Laravel
+  stores with the same runtime store and prefix share their tags.
+- `increment()` and `decrement()` on a tagged cache throw
+  `BadMethodCallException`: counters keep no tags and would survive a flush.
+- A runtime store limits how many tags one entry or one flush carries; Orbit
+  stores keep up to 16, fewer for a long key. More throws
+  `Claviron\Runtime\CacheTooManyTagsException`, whose `$count` and `$max`
+  say how many were given and kept, and nothing is written.
+- `add()` reads and then writes; it is not atomic, tagged or not.
+
+As in Laravel, `lock()` on a tagged cache is the store's untagged lock, and
+`clear()` on a tagged cache clears the whole store; `flush()` is the tagged
+operation.
+
 ## Sessions
 
 The `claviron` session driver stores Laravel's serialized session payload in a

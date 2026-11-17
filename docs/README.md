@@ -60,10 +60,13 @@ driver name does not create its backing Rust service or select every native
 integration automatically.
 
 - **Cache:** the `claviron` driver selects a configured runtime store through
-  `runtime_store`, or the runtime default when omitted. Laravel prefixes and
-  repository semantics remain explicit. An ordinary detached PHP process may
-  use a configured Laravel-store fallback; without one, detached reads miss and
-  writes are dropped with a warning.
+  `runtime_store`, or the runtime default when omitted or null; a name the
+  runtime lacks, or an empty one, is an error rather than the default. Laravel
+  prefixes and repository semantics remain explicit, and Laravel cache tags
+  are available exactly when the selected runtime store supports them. An
+  ordinary detached PHP process may use a configured Laravel-store fallback;
+  without one, detached reads miss and writes are dropped with a warning. See
+  the [PHP guide](../php/README.md#cache).
 - **Database:** opted-in `pgsql` and `mysql` connections use the selected native
   pool while Laravel retains grammar, query events, hydration, transactions,
   savepoints, and commit callbacks. Pool connection/session options come from

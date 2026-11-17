@@ -336,6 +336,57 @@ Previously stored, unescaped marker-prefixed strings are indistinguishable from
 serialized envelopes. Expire or rewrite affected keys through the updated codec
 when their original literal value is known.
 
+## Cache store selection and tags
+
+`runtime_store` is the only field that maps a Laravel store to a runtime
+store. The provider reads it before consulting the runtime: absent or null
+passes null to `claviron_cache_store()`, which resolves
+`CacheProvider::default_store()`; any other value must be a non-empty string,
+or the store fails to resolve with `InvalidArgumentException`, attached or
+detached. A name the runtime does not have is the runtime's
+`CacheException` from `claviron_cache_store()`; it is neither replaced by the
+default nor by `fallback`, which applies only when no runtime is configured.
+
+`Cache\Store::open()` resolves the handle once and asks
+`claviron_cache_supports_tags()` about it. Laravel's
+`Repository::supportsTags()` is method presence on the store object, so the
+answer is carried by the class: `Store` has no `tags()`, `TaggableStore`
+extends it with one. Two Laravel stores on the `claviron` driver therefore
+report differently when their runtime stores do.
+
+`TaggableStore::tags()` returns Laravel's own `TaggedCache` over two classes
+of this package. `TagScope` is the store contract the tagged cache writes
+through: every put carries the list's runtime tags through
+`claviron_cache_put_tagged()`, reads and deletes are the untagged store's.
+`TagSet` replaces Laravel's per-tag identifiers: the namespace is the ordered,
+length-prefixed tag names, which Laravel's `TaggedCache` hashes into the key
+as usual, and `reset()`/`flush()` call `claviron_cache_invalidate_tags()`
+instead of rotating identifiers. Nothing about a tag is stored as a cache
+value, so a flush is a single runtime invalidation, visible to every worker,
+and it reaches every entry that carries a flushed tag whatever list stored
+it. Runtime tags are the Laravel store prefix followed by the tag name, so a
+prefix scopes tags as it scopes keys.
+
+Tagged counters are refused with `BadMethodCallException`: a counter lives in
+the Orbit counter ring, which keeps no tags, so it would survive a flush of
+the namespace it was written under. Tag lists are validated in `tags()`, with
+the same `TypeError` and `ValueError` the native functions use, plus
+`InvalidArgumentException` for an empty list, so a read cannot succeed on a
+list a write would refuse. `CacheTooManyTagsException` (with `$count` and
+`$max`) and every other `CacheException` reach the caller unchanged.
+
+Counters and locks are outside this selection altogether. `increment()` and
+`decrement()` use `orbit_counter_*` and `lock()` the Orbit lock ring, keyed with
+the Laravel prefix, independently of the runtime store `runtime_store` names;
+they do not follow a Redis runtime store.
+
+The integration test `tests/cache_store.rs` runs `tests/fixtures/cache_store.php`
+through Laravel's `CacheManager` and the real cache functions, against an Orbit
+store on an in-memory fleet and two memory stores. It needs a Laravel
+application's Composer autoloader, by default `examples/laravel/vendor`.
+`php php/tests/runtime-availability.php /path/to/vendor/autoload.php` pins the
+detached refusal of an empty `runtime_store`.
+
 ## Cache-backed sessions
 
 The PHP package registers a Laravel session driver named `claviron`. It is a

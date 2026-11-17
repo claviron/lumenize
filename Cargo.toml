@@ -60,6 +60,13 @@ futures-util.workspace = true
 http.workspace = true
 http-body-util.workspace = true
 tempfile.workspace = true
+# The cache driver's test hosts a real Orbit store and the PHP cache functions.
+claviron = { workspace = true, features = ["cache", "orbit"] }
+claviron-php = { workspace = true, features = ["cache"] }
+tokio = { workspace = true, features = ["macros"] }
+
+[[test]]
+name = "cache_store"
 
 [[test]]
 name = "native_registration"

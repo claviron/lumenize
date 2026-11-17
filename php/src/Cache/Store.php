@@ -4,32 +4,34 @@ declare(strict_types=1);
 
 namespace Lumenize\Cache;
 
+use Claviron\Runtime\CacheHandle;
 use Illuminate\Contracts\Cache\Lock as LockContract;
 use Illuminate\Contracts\Cache\LockProvider;
 use Illuminate\Contracts\Cache\Store as StoreContract;
 use RuntimeException;
 
 /**
- * Laravel's cache contract over a named Claviron runtime store.
+ * Laravel's cache contract over one resolved Claviron runtime store.
  *
  * Values live in the runtime store named by `runtime_store` in
- * `config/cache.php` — one of the stores in `cache.yaml`. Counters and locks
- * are not cache to the runtime: `increment()`/`decrement()` go to the Orbit
- * counter ring and `lock()` to the Orbit lock ring, each keyed with this
- * store's prefix. A value put under a key and a counter incremented under the
- * same key are therefore two different things, and `get()` answers from the
- * cache only.
+ * `config/cache.php` — one of the stores in `cache.yaml` — or in the
+ * runtime's default store when `runtime_store` is omitted or null. Counters
+ * and locks are not cache to the runtime: `increment()`/`decrement()` go to
+ * the Orbit counter ring and `lock()` to the Orbit lock ring, each keyed with
+ * this store's prefix, whatever backend the runtime store uses. A value put
+ * under a key and a counter incremented under the same key are therefore two
+ * different things, and `get()` answers from the cache only.
  *
- * This class exists only inside the runtime; the provider builds a
- * `DetachedStore` anywhere the host functions are absent.
+ * `open()` returns this class for a runtime store without tags, so Laravel's
+ * `supportsTags()` is false and `tags()` throws, and `TaggableStore` for one
+ * with them. This class exists only inside the runtime; the provider builds a
+ * `DetachedStore` anywhere the host is absent.
  *
  * `flush()` clears the whole runtime store, this prefix or not, and cannot
  * reach counters: give each application its own store in `cache.yaml`.
  */
-final class Store implements StoreContract, LockProvider
+class Store implements StoreContract, LockProvider
 {
-    private \Claviron\Runtime\CacheHandle $cache;
-
     /**
      * Laravel's stores `serialize()` every value. Here ordinary scalars and
      * arrays remain native for other runtime readers. Objects and strings
@@ -38,13 +40,27 @@ final class Store implements StoreContract, LockProvider
      */
     private const OBJECT = "\0claviron:object\0";
 
-    public function __construct(?string $runtimeStore, private readonly string $prefix)
+    final protected function __construct(
+        protected readonly CacheHandle $cache,
+        protected readonly string $prefix,
+    ) {}
+
+    /**
+     * Resolve a runtime store once: the named one, or the runtime default for
+     * null. A name the runtime does not know is its `CacheException`; there is
+     * no fallback to the default.
+     */
+    public static function open(?string $runtimeStore, string $prefix): self
     {
         if (!function_exists('claviron_cache_store')) {
             throw new RuntimeException('The Claviron cache runtime is unavailable.');
         }
 
-        $this->cache = claviron_cache_store($runtimeStore);
+        $cache = claviron_cache_store($runtimeStore);
+
+        return claviron_cache_supports_tags($cache)
+            ? new TaggableStore($cache, $prefix)
+            : new self($cache, $prefix);
     }
 
     public function get($key)
@@ -140,7 +156,7 @@ final class Store implements StoreContract, LockProvider
         return $this->prefix;
     }
 
-    private static function encode(mixed $value): mixed
+    protected static function encode(mixed $value): mixed
     {
         if (is_object($value)
             || (is_string($value) && str_starts_with($value, self::OBJECT))) {
@@ -150,7 +166,7 @@ final class Store implements StoreContract, LockProvider
         return $value;
     }
 
-    private static function decode(mixed $value): mixed
+    protected static function decode(mixed $value): mixed
     {
         if (is_string($value) && str_starts_with($value, self::OBJECT)) {
             return unserialize(substr($value, strlen(self::OBJECT)));

@@ -1,6 +1,8 @@
 use std::sync::Arc;
 
-use claviron_php::embed::extension::{FunctionEntries, PhpEmbedExtension};
+use claviron_php::embed::extension::{
+    FunctionEntries, PhpEmbedExtension, register_extension,
+};
 use lumenize::broadcast::BroadcastExtension;
 
 #[path = "support/native_runtime.rs"]
@@ -28,7 +30,13 @@ async fn laravel_registration_and_exceptions_survive_zts_requests() {
     native_runtime::run_fixture(
         &std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
             .join("tests/fixtures/native_registration.php"),
-        Some(Arc::new(LaravelFunctions(BroadcastExtension))),
+        async |state| {
+            register_extension(
+                state,
+                Arc::new(LaravelFunctions(BroadcastExtension)),
+            )
+            .unwrap();
+        },
     )
     .await;
 }
