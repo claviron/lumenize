@@ -1,6 +1,8 @@
 # --- Rust / Cargo ---
 /target/
 /target-native/
+.cargo/checkout.local.toml
+Cargo.lock
 # --- Build output ---
 /build/
 /build-*/
