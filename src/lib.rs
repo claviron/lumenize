@@ -41,6 +41,8 @@ pub mod broadcast;
 #[cfg(feature = "cli")]
 pub mod cli;
 pub mod congif;
+#[cfg(feature = "edge")]
+pub mod edge;
 #[cfg(feature = "runner")]
 mod options;
 #[cfg(feature = "runner")]

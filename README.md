@@ -76,8 +76,14 @@ The library has no default features. Configuration evaluation and
 `broadcast` enables the native broadcast adapter. These features compile
 capabilities; they do not register services or start an application.
 
-Register the needed adapters in the host's existing composition, before
-configuration preparation and PHP execution:
+For a Claviron Edge, enable `edge` and call `lumenize::edge::register` in the
+host bootstrap after Edge has registered its host registry. It installs the
+Laravel PHP config parser. With `broadcast`, it also registers the native
+broadcaster and its Edge routes. Select `webtransport` for WebTransport
+sessions. Registration does not start a PHP application.
+
+Hosts can also register individual adapters before configuration preparation
+and PHP execution:
 
 ```rust,no_run
 use claviron::runtime::{AppState, Register, registry};
