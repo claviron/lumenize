@@ -30,6 +30,20 @@ Your application's configuration and authorization remain yours. Enable only
 the services your host provides; installing the package does not start a server
 or replace your existing application. Start with the [PHP guide](php/README.md).
 
+## What a runner is
+
+Lumenize is a runner: it hosts one Laravel application from that
+application's own project. The project owns the process. Its configuration is
+one launch file, `lumenize.yaml`, beside `composer.json`, and its sections
+(listeners, TLS, cache, Redis, database pools, broadcasting, logging) use the
+same schemas those parts use everywhere in Claviron.
+
+A runner is not the opposite of an edge. It serves a single host because one
+application needs no more; an application that needs virtual hosts or
+per-host policy is served through a Claviron edge, with Lumenize behind it
+over Orbit Link. `claviron-runner` describes the role in full:
+[What a runner is](https://crates.io/crates/claviron-runner).
+
 ## Packages
 
 The library separates framework integration from its optional application

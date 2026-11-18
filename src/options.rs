@@ -123,6 +123,10 @@ impl Options {
 
     pub fn validate(&self) -> crate::Result<()> {
         self.link_instances()?;
+        // The runner's own refusal names its feature; this build's is ours.
+        if !self.runner.client_auth.is_empty() && !cfg!(feature = "tls") {
+            return Err("client_auth requires the tls feature".into());
+        }
         self.runner.validate()?;
         if self.config_path.as_os_str().is_empty() {
             return Err("config_path must name a file".into());

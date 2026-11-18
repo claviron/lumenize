@@ -378,6 +378,46 @@ the store, such as a component that issues missing certificates at boot, read
 it there. Omitting the section declares no TLS store, and the section in a
 build without the `tls` feature is refused, not ignored.
 
+### Client certificates on some listeners
+
+`tls_client_ca` asks every TLS listener for a client certificate. To ask only
+some of them, name those listeners under `client_auth`. Each value is the same
+declaration a host makes under `tls.client_auth` behind an Edge: a client
+certificate is required, and it is verified against this authority or bundle.
+
+```yaml
+listeners:
+  application:
+    transport: tcp
+    listen: 127.0.0.1:8443
+    protocols: [h2, h1]
+    tls: true
+  internal:
+    transport: tcp
+    listen: 127.0.0.1:8444
+    protocols: [h2, h1]
+    tls: true
+client_auth:
+  internal:
+    authority: {local: demo}   # a CA of the `tls` section's store
+    # or: ca_bundle: config/tls/clients-ca.pem
+    # optionally, together: organization: Example, unit: Operations
+```
+
+Here `internal` refuses a connection without a certificate the `demo`
+authority signed, and `application` asks for none. A name that is not a
+declared listener, a listener without `tls: true`, and `tls_client_ca` beside
+`client_auth` are refused when the launch is checked, naming what was wrong.
+`authority` is read from the `tls` section's store in each process as its
+listener starts, workers and replacement workers included; `ca_bundle` is a PEM
+file. The section travels to workers as it was written. A build without the
+`tls` feature refuses it.
+
+Laravel sees what the connection verified as server variables:
+`SSL_CLIENT_VERIFY` is `SUCCESS` with a certificate and `NONE` without one,
+and `SSL_CLIENT_S_DN` and `SSL_CLIENT_I_DN` carry its subject and issuer.
+`SSL_PROTOCOL` and `SSL_CIPHER` describe the TLS connection itself.
+
 ## Static assets
 
 The optional `files` Cargo feature exposes Claviron's static file service without
