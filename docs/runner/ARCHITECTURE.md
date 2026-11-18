@@ -182,7 +182,9 @@ What Lumenize adds is the owner and what is Laravel's:
   (`PhpOwner`); it answers what the routes, files and broadcasting in front
   of it did not claim. Its Orbit lane says `php`.
 - **Options** are one flat `lumenize.yaml`: the runner's shared keys beside
-  Lumenize's own `php`, `broadcasting` and `logging` sections.
+  Lumenize's own `php`, `cache`, `redis`, `database`, `broadcasting` and
+  `logging` sections. Each is the owning Claviron schema, handed over as a
+  value; no section has a second file beside the launch.
 - **Broadcasting** from PHP: `broadcasting` registers Claviron's
   native Laravel publisher; the Pusher endpoints themselves are the shell's.
 - **Watching** takes Laravel's source directories and restarts the PHP

@@ -35,6 +35,13 @@ pub struct Configuration {
     pub cache: Option<serde_yaml::Value>,
     /// Claviron's `DbFileConfig`, resolved against each process's boot env.
     pub database: Option<serde_yaml::Value>,
+    /// Claviron's `RedisConfig`, the connections Redis cache stores name;
+    /// resolved against each process's boot env, like `database`.
+    pub redis: Option<serde_yaml::Value>,
+    /// Claviron's `TlsConfigSource`, the schema `tls.yaml` uses: the
+    /// certificate store and its identities. A `tls: true` listener serves
+    /// its default identity. Resolved against each process's boot env.
+    pub tls: Option<serde_yaml::Value>,
     pub broadcasting: Option<serde_yaml::Value>,
     pub logging: Option<serde_yaml::Value>,
     /// The selected file's identity, carried to replacement workers.
@@ -133,6 +140,8 @@ impl Options {
             return Err("broadcasting requires the broadcast feature".into());
         }
         self.configuration.validate_database_features()?;
+        self.configuration.validate_redis_feature()?;
+        self.configuration.validate_tls_feature()?;
         if !self.runner.names_a_socket() && !self.runner.link_enabled() {
             return Err("select orbit or named listeners".into());
         }
@@ -167,6 +176,47 @@ impl Options {
                 serde_yaml::from_value(value.clone()).map_err(Into::into)
             })
             .transpose()
+    }
+
+    /// A `tls: true` listener serves the `tls` section's default identity:
+    /// its files become the runner's `tls_cert` and `tls_key`. Stated as well,
+    /// those must name the same files; a launch handed to a worker already
+    /// carries them, so this holds there too.
+    #[cfg(feature = "tls")]
+    pub(crate) fn prepare_tls(&mut self) -> crate::Result<()> {
+        use claviron::http::config::{ListenerSettings, TcpSecurity};
+        use claviron::tls::config::{TlsConfig, TlsConfigSource};
+
+        let Some(section) = &self.configuration.tls else {
+            return Ok(());
+        };
+        let serves_tls = self.runner.names_a_socket()
+            && self.runner.socket_listeners()?.iter().any(|listener| {
+                matches!(
+                    &listener.settings,
+                    ListenerSettings::Tcp(tcp)
+                        if matches!(tcp.security, TcpSecurity::Tls { .. })
+                )
+            });
+        if !serves_tls {
+            return Ok(());
+        }
+        let source: TlsConfigSource = serde_yaml::from_value(section.clone())?;
+        let (certificate, key) = identity_files(&TlsConfig::try_from(source)?)?;
+        match (&self.runner.tls_cert, &self.runner.tls_key) {
+            (None, None) => {}
+            (Some(stated), Some(stated_key))
+                if *stated == certificate && *stated_key == key =>
+            {
+                return Ok(());
+            }
+            _ => {
+                return Err("declare the listener certificate once: the tls section's default identity, or tls_cert and tls_key".into());
+            }
+        }
+        self.runner.tls_cert = Some(certificate);
+        self.runner.tls_key = Some(key);
+        Ok(())
     }
 
     #[cfg(feature = "cli")]
@@ -322,6 +372,55 @@ impl Configuration {
         Ok(())
     }
 
+    fn validate_redis_feature(&self) -> crate::Result<()> {
+        if self.redis.is_some() && !cfg!(feature = "redis") {
+            return Err("redis requires the redis feature".into());
+        }
+        Ok(())
+    }
+
+    fn validate_tls_feature(&self) -> crate::Result<()> {
+        if self.tls.is_some() && !cfg!(feature = "tls") {
+            return Err("tls requires the tls feature".into());
+        }
+        Ok(())
+    }
+
+    /// No separate tls.yaml, even when the launch declares no TLS: the
+    /// certificate provider takes this declaration, or that there is none,
+    /// before Claviron's own composition would register the file's owner.
+    #[cfg(feature = "tls")]
+    fn register_tls(
+        &self,
+        state: &claviron::runtime::AppState,
+    ) -> claviron::runtime::registry::Result<()> {
+        use claviron::tls::config::TlsConfigSource;
+        let tls = self
+            .tls
+            .as_ref()
+            .map(|value| expand::<TlsConfigSource>(state, value))
+            .transpose()?
+            .unwrap_or_else(TlsConfigSource::absent);
+        claviron::tls::register_with_config(state, tls)
+    }
+
+    /// No separate redis.yaml, even when the launch declares no connections:
+    /// the cache registered after this resolves its Redis stores against
+    /// these, and a store naming an undeclared one is refused there.
+    #[cfg(feature = "redis")]
+    fn register_redis(
+        &self,
+        state: &claviron::runtime::AppState,
+    ) -> claviron::runtime::registry::Result<()> {
+        let redis = self
+            .redis
+            .as_ref()
+            .map(|value| expand::<claviron::cache::RedisConfig>(state, value))
+            .transpose()?
+            .unwrap_or_default();
+        claviron::cache::register_redis_with_config(state, redis)
+    }
+
     pub(crate) fn register(
         &self,
         state: &claviron::runtime::AppState,
@@ -332,7 +431,11 @@ impl Configuration {
     ) -> claviron::runtime::registry::Result<()> {
         use claviron::runtime::registry;
         self.validate_database_features()
+            .and_then(|()| self.validate_redis_feature())
+            .and_then(|()| self.validate_tls_feature())
             .map_err(|error| registry::Error::msg(error.to_string()))?;
+        #[cfg(feature = "tls")]
+        self.register_tls(state)?;
         #[cfg(feature = "db")]
         {
             // No separate db.yaml, even when the launch declares no native
@@ -395,6 +498,8 @@ impl Configuration {
         .map_err(|error| registry::Error::msg(error.to_string()))?;
         state.config_reader().register(parser)?;
 
+        #[cfg(feature = "redis")]
+        self.register_redis(state)?;
         let cache = self
             .cache
             .as_ref()
@@ -472,6 +577,43 @@ fn validate_mode(mode: crate::PhpRunner) -> crate::Result<()> {
         );
     }
     Ok(())
+}
+
+/// The certificate and key files the default identity names, as Claviron's
+/// file snapshot reads them. An identity in hosting has no files to serve.
+#[cfg(feature = "tls")]
+fn identity_files(
+    config: &claviron::tls::config::TlsConfig
+) -> crate::Result<(PathBuf, PathBuf)> {
+    use claviron::ssl::certstore::{
+        CertificateSource, FULLCHAIN_CERT_FILENAME, PRIVKEY_FILENAME,
+    };
+    const IN_HOSTING: &str = "tls.default selects an identity in hosting; a listener serves one from files";
+    let store = config.certstore();
+    let source = config.default_cert_entry();
+    match source {
+        CertificateSource::Name(_) | CertificateSource::Local(_) => {
+            let name = source.basename().ok_or(IN_HOSTING)?;
+            let folder = store.server_dir(name.as_str());
+            Ok((
+                folder.join(FULLCHAIN_CERT_FILENAME),
+                folder.join(PRIVKEY_FILENAME),
+            ))
+        }
+        CertificateSource::Cn(_) => Err(IN_HOSTING.into()),
+        CertificateSource::Path(path) => {
+            let certificate = store.dir().join(path);
+            let key = certificate
+                .parent()
+                .ok_or("tls.default path names no folder")?
+                .join(PRIVKEY_FILENAME);
+            Ok((certificate, key))
+        }
+        CertificateSource::Paths(paths) => Ok((
+            paths.cert_path().ok_or("tls.default names no cert_path")?.clone(),
+            paths.key_path().ok_or("tls.default names no key_path")?.clone(),
+        )),
+    }
 }
 
 fn expand<T: serde::de::DeserializeOwned>(

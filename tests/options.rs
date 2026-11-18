@@ -193,3 +193,60 @@ fn only_persistent_php_supplies_link_execution_capacity() {
     script.validate().unwrap();
     assert_eq!(script.link_instances().unwrap(), None);
 }
+
+/// The launch's `redis` section is the Redis provider's whole declaration:
+/// it reaches the provider without a `redis.yaml`, and a build without the
+/// feature refuses it rather than ignoring it.
+#[test]
+fn a_redis_section_reaches_the_provider_or_is_refused() {
+    let configuration: Configuration = serde_yaml::from_str(
+        "redis: {connections: {default: {url: 'redis://127.0.0.1:6379/0'}}}\n",
+    )
+    .unwrap();
+    let checked = configuration.validate_redis_feature();
+    #[cfg(not(feature = "redis"))]
+    assert_eq!(
+        checked.unwrap_err().to_string(),
+        "redis requires the redis feature"
+    );
+    #[cfg(feature = "redis")]
+    {
+        checked.unwrap();
+        let state = claviron::runtime::AppState::standalone(
+            "redis-section-test",
+            "no-config-dir",
+        );
+        configuration.register_redis(&state).unwrap();
+        let provider = state
+            .registry_ref()
+            .resolve::<claviron::cache::RedisProvider>()
+            .unwrap();
+        assert!(provider.has_connection("default"));
+    }
+}
+
+/// A `tls: true` listener serves the `tls` section's default identity from
+/// the store the section names. Prepared again, as a worker's launch is, it
+/// holds; a different certificate stated beside the section is refused.
+#[cfg(feature = "tls")]
+#[test]
+fn a_tls_listener_serves_the_sections_default_identity() {
+    let mut options: Options = serde_yaml::from_str::<Launch>(
+        "listeners: {secure: {transport: tcp, listen: '127.0.0.1:0', protocols: [h1, h2], tls: true}}\ntls: {certstore: {dir: store}, default: {path: servers/app.example.test/fullchain.pem}, certs: [app.example.test]}\n",
+    )
+    .unwrap()
+    .into();
+    options.prepare_tls().unwrap();
+    let folder = Path::new("store/servers/app.example.test");
+    assert_eq!(
+        options.runner.tls_cert.as_deref(),
+        Some(folder.join("fullchain.pem").as_path())
+    );
+    assert_eq!(
+        options.runner.tls_key.as_deref(),
+        Some(folder.join("privkey.pem").as_path())
+    );
+    options.prepare_tls().unwrap();
+    options.runner.tls_cert = Some("elsewhere.pem".into());
+    assert!(options.prepare_tls().is_err());
+}

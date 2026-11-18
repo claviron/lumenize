@@ -114,6 +114,8 @@ impl Runner {
             self.options.runner.frameworks = Some(detected_framework);
         }
         self.options.runner.icon.get_or_insert_with(|| "laravel".into());
+        #[cfg(feature = "tls")]
+        self.options.prepare_tls()?;
         self.options.validate()?;
         let name =
             self.options.runner.name.clone().ok_or("name is required")?;

@@ -28,6 +28,7 @@ Alpha APIs and configuration may change without backward compatibility guarantee
 | `metrics` | Claviron runtime metrics |
 | `db` | Native process-local DB composition |
 | `postgres`, `mysql`, `sqlite` | Select the corresponding native DB backend; each enables `db` |
+| `redis` | Redis cache stores, over the launch's `redis` connections |
 | `legacy-linux` | Compatibility with Linux kernels older than 5.3 |
 
 The doors, guards, routing, static mounts, broadcasting, watching and workers
@@ -189,6 +190,32 @@ cache:
 Omitting `cache` (or using `cache: {}`) declares no stores. Cache and other launch
 policy changes require a process restart.
 
+With the `redis` feature, a Redis store names a connection from the `redis`
+section of the same file; there is no separate `redis.yaml`:
+
+```yaml
+redis:
+  connections:
+    default:
+      url: ${REDIS_URL}
+cache:
+  stores:
+    redis:
+      driver: redis
+      connection: default
+      prefix: "app:"
+```
+
+The section is Claviron's existing Redis connection schema. Only `url` is
+required; `exponent_base` (2.0) and `number_of_retries` (6) have defaults,
+`min_delay` and `max_delay` are the client library's own when omitted, and
+`connect_timeout` and `response_timeout` are unset, which means no deadline. As with `database`, each process, replacement
+workers included, resolves the section against its own boot environment.
+Omitting it declares no
+connections, and a Redis store that names one is refused at boot. The section
+in a build without the `redis` feature is refused, not ignored. Connection
+changes require a process restart.
+
 ## Native database pools
 
 Enable `postgres`, `mysql` or `sqlite` for runner-owned Rust pools. The
@@ -323,6 +350,33 @@ unaffected. Laravel receives the physical HTTPS scheme and TLS connection facts.
 Certificates are loaded at startup; restart the process after renewal.
 A pending TLS handshake is cancelled by listener shutdown; no handshake deadline
 is invented.
+
+The certificate can instead come from a certificate store, declared in a `tls`
+section of the same file in the schema Claviron's `tls.yaml` uses; there is no
+separate `tls.yaml`:
+
+```yaml
+tls:
+  certstore:
+    dir: .ssl
+    authority:
+      local: demo
+  default:
+    path: servers/app.example.test/fullchain.pem
+  certs: [app.example.test]
+```
+
+A `tls: true` listener then serves the section's default identity: here
+`.ssl/servers/app.example.test/fullchain.pem` with the `privkey.pem` beside it.
+A bare default name selects a store folder only when it is a short store name
+(`default`); a host name such as `app.example.test` is selected by `path`, or by
+`cert_path` and `key_path`. An identity held in hosting (`cn`) has no files and
+is refused. `tls_cert` and `tls_key` stated as well must name the same files.
+The section is Claviron's certificate provider's whole declaration for the
+process, resolved against each process's boot environment; services that need
+the store, such as a component that issues missing certificates at boot, read
+it there. Omitting the section declares no TLS store, and the section in a
+build without the `tls` feature is refused, not ignored.
 
 ## Static assets
 
