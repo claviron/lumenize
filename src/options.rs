@@ -123,10 +123,6 @@ impl Options {
 
     pub fn validate(&self) -> crate::Result<()> {
         self.link_instances()?;
-        // The runner's own refusal names its feature; this build's is ours.
-        if !self.runner.client_auth.is_empty() && !cfg!(feature = "tls") {
-            return Err("client_auth requires the tls feature".into());
-        }
         self.runner.validate()?;
         if self.config_path.as_os_str().is_empty() {
             return Err("config_path must name a file".into());
@@ -182,7 +178,7 @@ impl Options {
             .transpose()
     }
 
-    /// A `tls: true` listener serves the `tls` section's default identity:
+    /// A TLS listener serves the `tls` section's default identity:
     /// its files become the runner's `tls_cert` and `tls_key`. Stated as well,
     /// those must name the same files; a launch handed to a worker already
     /// carries them, so this holds there too.
