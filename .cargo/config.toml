@@ -1,3 +1,4 @@
+include = [{ path = "checkout.local.toml", optional = true }]
 [env]
 
 # Orbit transport (kinds 202 and 211): an HTTP exchange between an edge
