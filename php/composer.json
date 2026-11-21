@@ -1,6 +1,6 @@
 {
   "name": "claviron/laravel",
-  "version": "0.1.4",
+  "version": "0.1.5",
   "description": "Claviron drivers and adapters for Laravel: cache, sessions, database, broadcasting, queue, schedule, and the Octane client",
   "type": "library",
   "license": "MIT",
